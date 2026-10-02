@@ -323,8 +323,8 @@ function QuestionCard({
             </div>
           )}
 
-          {/* Teacher annotations panel — red ink with visual underlines and strikethroughs */}
-          {q.hasTeacherMarking && (
+          {/* Teacher annotations panel — only in discuss mode (mark mode papers are unmarked) */}
+          {!isMarkQ && q.hasTeacherMarking && (
             <TeacherAnnotationsPanel
               annotations={annotations}
               fallbackText={teacherText || undefined}
