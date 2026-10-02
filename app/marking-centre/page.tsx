@@ -150,7 +150,7 @@ function TeacherAnnotationsPanel({ annotations, fallbackText }: {
   return (
     <div style={{ background: "#dc262608", borderRadius: 8, padding: "10px 12px", borderLeft: "3px solid #dc2626" }}>
       <p style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-        🔴 Teacher&rsquo;s Red Ink
+        Teacher&rsquo;s Feedback
       </p>
 
       {hasAny ? (
@@ -853,25 +853,44 @@ export default function MarkingCentrePage() {
                 </div>
               )}
 
-              {/* Tab: Topics (mark mode only) */}
-              {activeTab === "topics" && report.mode === "mark" && (
-                <div style={{ ...cardStyle, gap: 20 }}>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: "var(--fg)" }}>Performance by topic</p>
-                  {report.topicAnalysis.map((t, i) => <TopicBar key={i} topic={t} />)}
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", paddingTop: 8, borderTop: "1px solid var(--rule)" }}>
-                    {[
-                      { label: "Strong", color: "#16a34a" },
-                      { label: "Needs work", color: "#d97706" },
-                      { label: "Weak", color: "#dc2626" },
-                    ].map(l => (
-                      <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
-                        <span style={{ fontSize: 12, color: "var(--mid)" }}>{l.label}</span>
-                      </div>
-                    ))}
+              {/* Tab: Topics */}
+              {activeTab === "topics" && (() => {
+                const topicData = report.mode === "mark"
+                  ? report.topicAnalysis
+                  : (() => {
+                      const map = new Map<string, { attained: number; total: number }>();
+                      for (const q of report.markedQuestions) {
+                        const t = q.topic || "General Science";
+                        const ex = map.get(t) ?? { attained: 0, total: 0 };
+                        map.set(t, { attained: ex.attained + (q.estimatedScore ?? 0), total: ex.total + (q.marks ?? 0) });
+                      }
+                      return Array.from(map.entries()).map(([topic, { attained, total }]) => {
+                        const pct = total === 0 ? 0 : Math.round((attained / total) * 100);
+                        return { topic, marksAttained: attained, totalMarks: total, percentage: pct, status: (pct >= 75 ? "strong" : pct >= 50 ? "needs-work" : "weak") as "strong" | "needs-work" | "weak" };
+                      }).sort((a, b) => a.percentage - b.percentage);
+                    })();
+                return (
+                  <div style={{ ...cardStyle, gap: 20 }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 15, color: "var(--fg)" }}>Performance by topic</p>
+                    {topicData.length === 0
+                      ? <p style={{ margin: 0, fontSize: 13, color: "var(--mid)" }}>No topic data available.</p>
+                      : topicData.map((t, i) => <TopicBar key={i} topic={t} />)
+                    }
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", paddingTop: 8, borderTop: "1px solid var(--rule)" }}>
+                      {[
+                        { label: "Strong", color: "#16a34a" },
+                        { label: "Needs work", color: "#d97706" },
+                        { label: "Weak", color: "#dc2626" },
+                      ].map(l => (
+                        <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
+                          <span style={{ fontSize: 12, color: "var(--mid)" }}>{l.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* New scan button */}
               <button style={btnSecondary} onClick={() => { setStep("choose"); setReport(null); setPdfFile(null); setModeWarning(""); }}>
