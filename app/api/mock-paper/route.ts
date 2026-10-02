@@ -155,16 +155,32 @@ Student answer: ${answer}`;
 
   let parsed: { results: MarkingResult[] };
 
+  // Strip markdown code fences if the model wrapped the JSON
+  const rawText = textBlock.text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+
   try {
-    parsed = JSON.parse(textBlock.text);
+    parsed = JSON.parse(rawText);
   } catch {
-    return NextResponse.json(
-      {
-        error: "Failed to parse marking results as JSON",
-        raw: textBlock.text,
-      },
-      { status: 422 }
-    );
+    // Last resort: find the first { ... } block in the response
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        parsed = JSON.parse(match[0]);
+      } catch {
+        return NextResponse.json(
+          { error: "Failed to parse marking results as JSON", raw: textBlock.text },
+          { status: 422 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Failed to parse marking results as JSON", raw: textBlock.text },
+        { status: 422 }
+      );
+    }
   }
 
   if (!parsed.results || !Array.isArray(parsed.results)) {
