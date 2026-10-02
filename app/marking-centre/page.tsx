@@ -827,7 +827,9 @@ export default function MarkingCentrePage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ ...cardStyle }}>
                     <p style={{ margin: "0 0 8px", fontWeight: 600, color: "var(--fg)" }}>Questions needing Sage sessions</p>
-                    {report.questionsNeedingHelp.map((q, i) => (
+                    {report.questionsNeedingHelp.length === 0 ? (
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--mid)" }}>Nil — full marks on every question. 🎉</p>
+                    ) : report.questionsNeedingHelp.map((q, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                         <span style={{ fontSize: 13, color: "var(--fg)" }}>Q{q.questionNumber}{q.part ? `(${q.part})` : ""} · {q.topic}</span>
                         <ScoreBadge score={q.estimatedScore} total={q.marks} />
