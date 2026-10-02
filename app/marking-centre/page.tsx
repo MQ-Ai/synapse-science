@@ -67,6 +67,7 @@ interface DiscussQuestion {
   teacherFeedback: string;
   teacherAnnotations?: TeacherAnnotations;
   studentCorrections: string;
+  hasTeacherMarking: boolean;
   estimatedScore: number;
   needsDiscussion: boolean;
 }
