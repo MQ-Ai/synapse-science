@@ -45,9 +45,17 @@ CRITICAL: Do NOT confuse blue/black ink with red ink.
 ━━━ MARKING STANDARDS (apply strictly) ━━━
 - Award marks only for scientifically correct and precise statements
 - Vague language does not earn marks — "because it's hot" ≠ "because the temperature of the water increases"
-- Students must demonstrate understanding of the mechanism, not just state the outcome
-- Award each mark individually against the criterion — never round up or give benefit of the doubt
+- Students must demonstrate understanding of the MECHANISM, not just state the outcome
+- Stating the outcome alone without the mechanism earns 0 for that mark point
+- For any question involving a physical action (pouring, spreading, crushing, grinding, stirring, etc.),
+  the student MUST explicitly state the physical change caused by that action AND how it leads to the result:
+    ✗ "The tea comes into contact with cooler air" — effect only, no mechanism → does not earn the mark
+    ✓ "Pouring stretches the tea into a thin stream, increasing the surface area exposed to the cooler surrounding air" → earns the mark
+- For rate questions (faster/slower/more/less): the student must explain WHAT changed AND WHY that affects the rate
+- For heat transfer: if the question asks how/why, the student must name the physical change driving it
+- Award each mark individually against each criterion — never round up or give benefit of the doubt
 - The maximum score for any question equals exactly the marks stated for it
+- If an answer is partially correct, deduct for each missing mechanism and state exactly what is missing in whatIsMissing
 
 Return a single JSON object — nothing else:
 {
