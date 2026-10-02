@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { PSLE_QUESTIONS, TOPICS, YEARS, PSLEQuestion } from "@/lib/psle-questions";
 import PSLESocraticTerminal from "@/components/psle-socratic-terminal";
 
@@ -339,6 +339,39 @@ export default function PSLEPage() {
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<UploadedQuestionPreview | null>(null);
+  const [fromMarkingCentre, setFromMarkingCentre] = useState(false);
+
+  // ── On mount: restore student + bridge from Marking Centre ─────────────────
+  useEffect(() => {
+    // 1. Restore student profile from localStorage
+    let restoredStudent: StudentProfile | null = null;
+    try {
+      const saved = localStorage.getItem("sage_student_profile");
+      if (saved) restoredStudent = JSON.parse(saved) as StudentProfile;
+    } catch { /* ignore */ }
+    if (restoredStudent) setStudent(restoredStudent);
+
+    // 2. Check for a question arriving from Marking Centre
+    let markingQuestion: PSLEQuestion | null = null;
+    try {
+      const raw = sessionStorage.getItem("sage_pending_question");
+      if (raw) {
+        sessionStorage.removeItem("sage_pending_question");
+        markingQuestion = JSON.parse(raw) as PSLEQuestion;
+      }
+    } catch { /* ignore */ }
+
+    if (markingQuestion) {
+      setFromMarkingCentre(true);
+      if (restoredStudent) {
+        // Student already known — go straight to the session
+        setSelectedQuestion(markingQuestion);
+      } else {
+        // Student unknown — queue the question and fire the email gate
+        setPendingQuestion(markingQuestion);
+      }
+    }
+  }, []);
 
   function handleQuestionClick(q: PSLEQuestion) {
     if (student) { setSelectedQuestion(q); }
@@ -346,6 +379,8 @@ export default function PSLEPage() {
   }
 
   function handleEmailConfirm(profile: StudentProfile) {
+    // Persist so returning students skip the gate next time
+    try { localStorage.setItem("sage_student_profile", JSON.stringify(profile)); } catch { /* ignore */ }
     setStudent(profile);
     if (pendingQuestion) { setSelectedQuestion(pendingQuestion); setPendingQuestion(null); }
     if (pendingUpload) { setSelectedQuestion(pendingUpload as unknown as PSLEQuestion); setPendingUpload(null); }
@@ -369,12 +404,30 @@ export default function PSLEPage() {
 
   if (selectedQuestion && selectedQuestion.id) {
     return (
-      <PSLESocraticTerminal
-        key={selectedQuestion.id}
-        question={selectedQuestion}
-        student={student!}
-        onBack={() => setSelectedQuestion(null)}
-      />
+      <>
+        {/* Marking Centre context banner */}
+        {fromMarkingCentre && (
+          <div
+            className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-2.5 text-sm font-medium"
+            style={{ background: "linear-gradient(90deg,#7C3AED,#A855F7)", color: "white" }}
+          >
+            <span>📋 Reviewing from your marked paper</span>
+            <button
+              onClick={() => setFromMarkingCentre(false)}
+              className="text-purple-200 hover:text-white text-lg leading-none ml-4"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        <PSLESocraticTerminal
+          key={selectedQuestion.id}
+          question={selectedQuestion}
+          student={student!}
+          onBack={() => { setSelectedQuestion(null); setFromMarkingCentre(false); }}
+        />
+      </>
     );
   }
 
