@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PSLE_QUESTIONS, TOPICS, YEARS, PSLEQuestion } from "@/lib/psle-questions";
 import PSLESocraticTerminal from "@/components/psle-socratic-terminal";
+import { saveToRepository, getRepository, type RepositoryQuestion } from "@/lib/repository";
 
 export interface StudentProfile {
   email: string;
@@ -341,6 +342,11 @@ export default function PSLEPage() {
   const [pendingUpload, setPendingUpload] = useState<UploadedQuestionPreview | null>(null);
   const [fromMarkingCentre, setFromMarkingCentre] = useState(false);
 
+  // Saved-to-repo tracking: keyed by `${year}-${questionNumber}`
+  const [savedGroups, setSavedGroups] = useState<Set<string>>(new Set());
+  // Pending save: save once we have a student profile
+  const [pendingSaveQ, setPendingSaveQ] = useState<PSLEQuestion | null>(null);
+
   // ── On mount: restore student + bridge from Marking Centre ─────────────────
   useEffect(() => {
     // 1. Restore student profile from localStorage
@@ -351,7 +357,16 @@ export default function PSLEPage() {
     } catch { /* ignore */ }
     if (restoredStudent) setStudent(restoredStudent);
 
-    // 2. Check for a question arriving from Marking Centre
+    // 2. Load which question groups are already saved
+    if (restoredStudent) {
+      try {
+        const repo = getRepository(restoredStudent.email);
+        const groups = new Set(repo.map((rq: RepositoryQuestion) => `${rq.paperTitle}-${rq.questionNumber}`));
+        setSavedGroups(groups);
+      } catch { /* ignore */ }
+    }
+
+    // 3. Check for a question arriving from Marking Centre
     let markingQuestion: PSLEQuestion | null = null;
     try {
       const raw = sessionStorage.getItem("sage_pending_question");
@@ -364,10 +379,8 @@ export default function PSLEPage() {
     if (markingQuestion) {
       setFromMarkingCentre(true);
       if (restoredStudent) {
-        // Student already known — go straight to the session
         setSelectedQuestion(markingQuestion);
       } else {
-        // Student unknown — queue the question and fire the email gate
         setPendingQuestion(markingQuestion);
       }
     }
@@ -379,9 +392,22 @@ export default function PSLEPage() {
   }
 
   function handleEmailConfirm(profile: StudentProfile) {
-    // Persist so returning students skip the gate next time
     try { localStorage.setItem("sage_student_profile", JSON.stringify(profile)); } catch { /* ignore */ }
     setStudent(profile);
+
+    // Load saved groups for new student
+    try {
+      const repo = getRepository(profile.email);
+      const groups = new Set(repo.map((rq: RepositoryQuestion) => `${rq.paperTitle}-${rq.questionNumber}`));
+      setSavedGroups(groups);
+    } catch { /* ignore */ }
+
+    // Flush any pending save
+    if (pendingSaveQ) {
+      doSaveGroup(profile.email, pendingSaveQ);
+      setPendingSaveQ(null);
+    }
+
     if (pendingQuestion) { setSelectedQuestion(pendingQuestion); setPendingQuestion(null); }
     if (pendingUpload) { setSelectedQuestion(pendingUpload as unknown as PSLEQuestion); setPendingUpload(null); }
   }
@@ -392,7 +418,41 @@ export default function PSLEPage() {
       setSelectedQuestion(q as unknown as PSLEQuestion);
     } else {
       setPendingUpload(q);
-      setPendingQuestion({} as PSLEQuestion); // trigger email gate
+      setPendingQuestion({} as PSLEQuestion);
+    }
+  }
+
+  // Save ALL parts of a question (same year + questionNumber) to repository
+  function doSaveGroup(email: string, q: PSLEQuestion) {
+    const siblings = PSLE_QUESTIONS.filter(
+      (sq: PSLEQuestion) => sq.year === q.year && sq.questionNumber === q.questionNumber
+    );
+    const groupKey = `Synapse PSLE ${q.year}-${q.questionNumber}`;
+    for (const sq of siblings) {
+      const repoQ: RepositoryQuestion = {
+        id: `home-q${sq.year}-${sq.questionNumber}${sq.part}`,
+        savedAt: Date.now(),
+        paperTitle: groupKey,
+        questionNumber: sq.questionNumber,
+        part: sq.part,
+        topic: sq.topic,
+        question: sq.question,
+        marks: sq.marks,
+        firstAttemptAnswer: "",
+        firstAttemptScore: 0,
+      };
+      saveToRepository(email, repoQ);
+    }
+    setSavedGroups(prev => new Set(prev).add(`${groupKey}-${q.questionNumber}`));
+  }
+
+  function handleSave(e: React.MouseEvent, q: PSLEQuestion) {
+    e.stopPropagation();
+    if (student) {
+      doSaveGroup(student.email, q);
+    } else {
+      setPendingSaveQ(q);
+      setPendingQuestion({} as PSLEQuestion); // fire email gate
     }
   }
 
@@ -434,7 +494,7 @@ export default function PSLEPage() {
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
 
-      {/* Email gate — fires for both regular + upload flows */}
+      {/* Email gate — fires for regular + upload + save flows */}
       {(pendingQuestion || pendingUpload) && !student && (
         <EmailGateModal onConfirm={handleEmailConfirm} />
       )}
@@ -475,14 +535,24 @@ export default function PSLEPage() {
             </div>
           </div>
           {/* Nav — right side */}
-          <a
-            href="/marking-centre"
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all hover:opacity-80"
-            style={{ background: "linear-gradient(135deg,#7C3AED,#A855F7)", color: "white" }}
-          >
-            <span>📋</span>
-            <span>Marking Centre</span>
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href="/repository"
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all hover:opacity-80"
+              style={{ background: "linear-gradient(135deg,#16a34a,#22c55e)", color: "white" }}
+            >
+              <span>📚</span>
+              <span>Repository</span>
+            </a>
+            <a
+              href="/marking-centre"
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all hover:opacity-80"
+              style={{ background: "linear-gradient(135deg,#7C3AED,#A855F7)", color: "white" }}
+            >
+              <span>📋</span>
+              <span>Marking Centre</span>
+            </a>
+          </div>
         </div>
       </header>
 
@@ -534,24 +604,43 @@ export default function PSLEPage() {
 
         {/* Question Cards */}
         <div className="grid gap-3">
-          {filteredQuestions.map((q: PSLEQuestion) => (
-            <button key={q.id} onClick={() => handleQuestionClick(q)} className="w-full text-left rounded-2xl bg-white border border-orange-100 p-5 hover:border-orange-300 hover:shadow-md transition-all duration-200 group">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ background: topicColor(q.topic) }}>
-                  {topicEmoji(q.topic)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-orange-500 bg-orange-50 rounded-full px-2 py-0.5">{q.year} Q{q.questionNumber}{q.part}</span>
-                    <span className="text-xs text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">{q.topic}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{q.marks} mark{q.marks !== 1 ? "s" : ""}</span>
+          {filteredQuestions.map((q: PSLEQuestion) => {
+            const groupKey = `Synapse PSLE ${q.year}-${q.questionNumber}`;
+            const isSaved = savedGroups.has(`${groupKey}-${q.questionNumber}`);
+            return (
+              <button key={q.id} onClick={() => handleQuestionClick(q)} className="w-full text-left rounded-2xl bg-white border border-orange-100 p-5 hover:border-orange-300 hover:shadow-md transition-all duration-200 group">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ background: topicColor(q.topic) }}>
+                    {topicEmoji(q.topic)}
                   </div>
-                  <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">{q.question}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs font-semibold text-orange-500 bg-orange-50 rounded-full px-2 py-0.5">{q.year} Q{q.questionNumber}{q.part}</span>
+                      <span className="text-xs text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">{q.topic}</span>
+                      <span className="text-xs text-gray-400 ml-auto">{q.marks} mark{q.marks !== 1 ? "s" : ""}</span>
+                    </div>
+                    <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">{q.question}</p>
+                  </div>
+                  <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                    {/* Save to Repository button */}
+                    <button
+                      onClick={(e) => handleSave(e, q)}
+                      title={isSaved ? "Saved to Repository" : "Save whole question to Repository"}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all"
+                      style={{
+                        background: isSaved ? "#16a34a" : "#f0fdf4",
+                        color: isSaved ? "white" : "#16a34a",
+                        border: isSaved ? "none" : "1.5px solid #86efac",
+                      }}
+                    >
+                      {isSaved ? "✓" : "💾"}
+                    </button>
+                    <div className="text-orange-300 group-hover:text-orange-500 transition-colors text-lg">→</div>
+                  </div>
                 </div>
-                <div className="flex-shrink-0 text-orange-300 group-hover:text-orange-500 transition-colors text-lg">→</div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
 
         {filteredQuestions.length === 0 && (
@@ -589,15 +678,17 @@ function topicColor(topic: string): string {
 
 function topicEmoji(topic: string): string {
   const emojis: Record<string, string> = {
-    "Plants & Environment":"🌿","Digestion":"🫀","Digestive System":"🫀",
-    "Microorganisms & Hygiene":"🦠","Microorganisms":"🦠","Insects & Reproduction":"🦟","Insects & Behaviour":"🦟",
-    "Plant Transport":"🌱","Photosynthesis":"☀️","Fair Test":"⚖️",
-    "Forces & Materials":"🔩","Forces & Volume":"📦","Forces — Friction":"🛞",
-    "Electricity & Magnetism":"⚡","Electricity — Circuits":"💡","Energy":"🔋","Energy & Forces":"🔋",
-    "Properties of Air":"💨","Heat & Temperature":"🌡️","Heat Transfer":"🔥","Heat & Gases":"🌡️",
-    "States of Matter — Condensation":"💧","Sound":"🔊","Magnets & Electromagnets":"🧲",
-    "Respiratory System":"🫁","Plant Cells":"🔬","Scientific Method":"🧪","Life Cycles":"🐸",
-    "Food Chains & Webs":"🌿","Water Cycle":"🌧️","Light & Shadows":"🔦","Living Things & Survival":"🌏",
+    "Plants & Environment":"🌿","Digestion":"🫁","Digestive System":"🫁",
+    "Microorganisms & Hygiene":"🦠","Insects & Reproduction":"🐛","Insects & Behaviour":"🐛",
+    "Plant Transport":"🌱","Photosynthesis":"☀️","Fair Test":"🔬",
+    "Forces & Materials":"⚖️","Electricity & Magnetism":"⚡","Electricity — Circuits":"⚡",
+    "Energy":"🔋","Energy & Forces":"🔋","Properties of Air":"💨",
+    "Heat & Temperature":"🌡️","Heat Transfer":"🔥","States of Matter — Condensation":"💧",
+    "Sound":"🔊","Forces & Volume":"⚖️","Magnets & Electromagnets":"🧲",
+    "Respiratory System":"🫁","Plant Cells":"🔬","Scientific Method":"🔬",
+    "Life Cycles":"🦋","Food Chains & Webs":"🌿","Water Cycle":"💧",
+    "Forces — Friction":"⚖️","Light & Shadows":"💡","Microorganisms":"🦠",
+    "Living Things & Survival":"🌿","Heat & Gases":"🌡️",
   };
-  return emojis[topic] || "📖";
+  return emojis[topic] || "📚";
 }
