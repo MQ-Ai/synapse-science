@@ -1,0 +1,13 @@
+{
+  "candidate_raw_email": "student@example.com",
+  "session_id": "sess_20260926_001",
+  "question_id": "q_rate_concentration_01",
+  "score": 0.87,
+  "causal_chain_completeness": 1.0,
+  "time_to_answer_seconds": 142.5,
+  "socratic_turns": 3,
+  "topic": "Rate of Reaction — Concentration",
+  "subject": "Pure Chemistry",
+  "level": "O-Level",
+  "platform_version": "1.0"
+}
