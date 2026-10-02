@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { saveToRepository, getRepository, type RepositoryQuestion } from "@/lib/repository";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -255,9 +256,13 @@ function TopicBar({ topic }: { topic: TopicSummary }) {
 function QuestionCard({
   q,
   onStartSage,
+  onSaveToRepo,
+  savedIds,
 }: {
   q: QuestionResult | DiscussQuestion;
   onStartSage: (q: QuestionResult | DiscussQuestion) => void;
+  onSaveToRepo: (q: QuestionResult | DiscussQuestion) => void;
+  savedIds: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isMarkQ = "autoScore" in q;
@@ -346,20 +351,40 @@ function QuestionCard({
             </div>
           )}
 
-          {score < total && (
-            <button
-              onClick={() => onStartSage(q)}
-              style={{
-                alignSelf: "flex-start",
-                background: "var(--accent)", color: "#fff",
-                border: "none", borderRadius: 8,
-                padding: "10px 18px", fontSize: 14, fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Discuss with Sage →
-            </button>
-          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {score < total && (
+              <button
+                onClick={() => onStartSage(q)}
+                style={{
+                  background: "var(--accent)", color: "#fff",
+                  border: "none", borderRadius: 8,
+                  padding: "10px 18px", fontSize: 14, fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Discuss with Sage →
+              </button>
+            )}
+            {(() => {
+              const qid = `mc-q${q.questionNumber}${q.part || ""}`;
+              const isSaved = savedIds.has(qid);
+              return (
+                <button
+                  onClick={() => onSaveToRepo(q)}
+                  style={{
+                    background: isSaved ? "#16a34a" : "var(--card)",
+                    color: isSaved ? "#fff" : "var(--fg)",
+                    border: `1px solid ${isSaved ? "#16a34a" : "var(--rule)"}`,
+                    borderRadius: 8,
+                    padding: "10px 18px", fontSize: 14, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {isSaved ? "✓ Saved" : "💾 Save to Repository"}
+                </button>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>
@@ -378,6 +403,18 @@ export default function MarkingCentrePage() {
   const [modeWarning, setModeWarning] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"summary" | "questions" | "topics">("summary");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Repository state
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
+    try {
+      const profile = localStorage.getItem("sage_student_profile");
+      if (!profile) return new Set();
+      const { email } = JSON.parse(profile) as { email: string };
+      return new Set(getRepository(email).map(q => q.id));
+    } catch { return new Set(); }
+  });
+  const [repoEmailPrompt, setRepoEmailPrompt] = useState<{ q: QuestionResult | DiscussQuestion } | null>(null);
+  const [repoEmailInput, setRepoEmailInput] = useState("");
 
   function handleModeSelect(m: Mode) {
     setMode(m);
@@ -477,6 +514,54 @@ export default function MarkingCentrePage() {
     };
     sessionStorage.setItem("sage_pending_question", JSON.stringify(sageQuestion));
     window.location.href = "/";
+  }
+
+  function handleSaveToRepo(q: QuestionResult | DiscussQuestion) {
+    try {
+      const raw = localStorage.getItem("sage_student_profile");
+      if (raw) {
+        const { email } = JSON.parse(raw) as { email: string };
+        doSaveToRepo(email, q);
+      } else {
+        // No profile yet — ask for email
+        setRepoEmailPrompt({ q });
+      }
+    } catch {
+      setRepoEmailPrompt({ q });
+    }
+  }
+
+  function doSaveToRepo(email: string, q: QuestionResult | DiscussQuestion) {
+    const isMarkQ = "autoScore" in q;
+    const rq: RepositoryQuestion = {
+      id: `mc-q${q.questionNumber}${q.part || ""}`,
+      savedAt: Date.now(),
+      paperTitle: report ? (report as { paperTitle?: string }).paperTitle ?? "PSLE Science Paper" : "PSLE Science Paper",
+      questionNumber: q.questionNumber,
+      part: q.part,
+      topic: q.topic,
+      question: q.question,
+      marks: q.marks,
+      firstAttemptAnswer: q.studentAnswer,
+      firstAttemptScore: isMarkQ ? (q as QuestionResult).autoScore : (q as DiscussQuestion).estimatedScore,
+    };
+    saveToRepository(email, rq);
+    setSavedIds(prev => new Set([...Array.from(prev), rq.id]));
+  }
+
+  function handleRepoEmailConfirm() {
+    const email = repoEmailInput.trim();
+    if (!email || !repoEmailPrompt) return;
+    // Lightweight save of email only so future saves are seamless
+    try {
+      const existing = localStorage.getItem("sage_student_profile");
+      if (!existing) {
+        localStorage.setItem("sage_student_profile", JSON.stringify({ email, name: "", level: "" }));
+      }
+    } catch { /* ignore */ }
+    doSaveToRepo(email, repoEmailPrompt.q);
+    setRepoEmailPrompt(null);
+    setRepoEmailInput("");
   }
 
   // ── Styles ─────────────────────────────────────────────────────────────────
@@ -850,10 +935,10 @@ export default function MarkingCentrePage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {report.mode === "mark"
                     ? report.sections.flatMap(s => s.questions).map((q, i) => (
-                        <QuestionCard key={i} q={q} onStartSage={handleStartSage} />
+                        <QuestionCard key={i} q={q} onStartSage={handleStartSage} onSaveToRepo={handleSaveToRepo} savedIds={savedIds} />
                       ))
                     : report.markedQuestions.map((q, i) => (
-                        <QuestionCard key={i} q={q} onStartSage={handleStartSage} />
+                        <QuestionCard key={i} q={q} onStartSage={handleStartSage} onSaveToRepo={handleSaveToRepo} savedIds={savedIds} />
                       ))
                   }
                 </div>
@@ -907,6 +992,50 @@ export default function MarkingCentrePage() {
 
         </div>
       </div>
+
+      {/* Repository email prompt modal */}
+      {repoEmailPrompt && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20,
+        }}>
+          <div style={{
+            background: "var(--card)", borderRadius: 16, padding: 28,
+            width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 16,
+          }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 17, color: "var(--fg)" }}>Save to your repository</p>
+            <p style={{ margin: 0, fontSize: 14, color: "var(--mid)", lineHeight: 1.5 }}>
+              Enter your email so we can save this question to your personal question bank.
+            </p>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={repoEmailInput}
+              onChange={e => setRepoEmailInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleRepoEmailConfirm()}
+              style={{
+                border: "1px solid var(--rule)", borderRadius: 8, padding: "10px 14px",
+                fontSize: 15, background: "var(--bg)", color: "var(--fg)", outline: "none",
+              }}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={handleRepoEmailConfirm}
+                style={{ flex: 1, background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setRepoEmailPrompt(null); setRepoEmailInput(""); }}
+                style={{ flex: 1, background: "var(--card)", color: "var(--fg)", border: "1px solid var(--rule)", borderRadius: 8, padding: "10px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
