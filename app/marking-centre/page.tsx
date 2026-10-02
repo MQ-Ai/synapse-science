@@ -468,8 +468,14 @@ export default function MarkingCentrePage() {
   }
 
   function handleStartSage(q: QuestionResult | DiscussQuestion) {
-    // Pass question to Sage via sessionStorage — key must match what app/page.tsx reads
-    sessionStorage.setItem("sage_pending_question", JSON.stringify(q));
+    // Transform to match what PSLESocraticTerminal expects.
+    // page.tsx guards on selectedQuestion.id — QuestionResult has none, so we add one.
+    const sageQuestion = {
+      ...q,
+      id: `mc-q${q.questionNumber}${q.part || ""}`,
+      year: new Date().getFullYear(),
+    };
+    sessionStorage.setItem("sage_pending_question", JSON.stringify(sageQuestion));
     window.location.href = "/";
   }
 
