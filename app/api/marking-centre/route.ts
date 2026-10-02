@@ -16,17 +16,38 @@ Your tasks:
 3. Score every student answer strictly against Singapore PSLE marking standards
 4. Provide specific, actionable feedback
 
-MARKING STANDARDS (apply strictly):
+━━━ INK COLOUR GUIDE — read this before attributing ANY annotation ━━━
+
+STUDENT writes in PENCIL (grey/graphite), BLUE ink, or BLACK ink:
+  • Original answers
+  • Words the student crossed out when they changed their mind (a strikethrough in blue/black/pencil = student self-correction, NOT teacher feedback)
+  • Any corrections or additions the student made themselves in blue/black/pencil
+  → All blue/black/pencil writing belongs in "studentAnswer", including crossed-out parts.
+  → Use ~~word~~ notation inline for anything the student struck through (e.g. "The plant ~~absorbs~~ takes in water").
+
+TEACHER marks in RED ink ONLY:
+  • Ticks ✓ (correct), crosses ✗ (wrong)
+  • Underlines drawn under specific words or phrases in the student's answer
+  • Strikethroughs drawn through specific words or phrases in the student's answer
+  • Circles around words
+  • Written scores, comments, or corrections
+  → Describe ALL of these in "teacherMarking" as a prose description.
+  → Also capture them in "teacherAnnotations" as a structured object (see schema).
+
+STUDENT CORRECTIONS after teacher feedback: GREEN ink:
+  • Words the student rewrote or added in green after seeing the teacher's marks
+
+CRITICAL: Do NOT confuse blue/black ink with red ink.
+  • A strikethrough in blue/black/pencil → student self-corrected → goes in "studentAnswer" as ~~text~~
+  • A strikethrough in RED → teacher struck it out → goes in "teacherMarking" and "teacherAnnotations.redStrikethroughs"
+  • Never attribute blue or black annotations to the teacher. Never attribute red annotations to the student.
+
+━━━ MARKING STANDARDS (apply strictly) ━━━
 - Award marks only for scientifically correct and precise statements
 - Vague language does not earn marks — "because it's hot" ≠ "because the temperature of the water increases"
 - Students must demonstrate understanding of the mechanism, not just state the outcome
 - Award each mark individually against the criterion — never round up or give benefit of the doubt
 - The maximum score for any question equals exactly the marks stated for it
-
-INK COLOR GUIDE:
-- Student's original answer: pencil (grey) or blue/black ink
-- Teacher marks: RED ink — ticks (✓), crosses (✗), underlines, written comments
-- Student corrections after feedback: GREEN ink
 
 Return a single JSON object — nothing else:
 {
@@ -43,9 +64,17 @@ Return a single JSON object — nothing else:
           "topic": "Matching PSLE Science topic e.g. Heat Transfer, Photosynthesis, Water Cycle",
           "question": "Full verbatim printed question text for this question or part",
           "marks": <marks available for this specific question or part>,
-          "studentAnswer": "Handwritten answer in pencil or blue/black ink ONLY. Empty string if blank.",
-          "teacherMarking": "Description of red ink annotations — ticks, crosses, comments. Empty string if none.",
-          "hasTeacherMarking": <boolean>,
+          "studentAnswer": "ALL handwritten text in pencil, blue or black ink — the student's complete answer. For words the student struck through in blue/black/pencil, use ~~crossed-out text~~ inline to preserve the strikethrough. Example: 'The plant ~~absorbs~~ takes in water through its ~~stem~~ roots by osmosis.' Empty string ONLY if the student wrote absolutely nothing.",
+          "teacherMarking": "Prose description of RED ink annotations only: ticks and where they appear, crosses and where they appear, phrases underlined in red, phrases struck through in red, written comments or scores in red. Empty string if there are NO red ink marks at all.",
+          "teacherAnnotations": {
+            "ticks": <integer — count of red ✓ marks, 0 if none>,
+            "crosses": <integer — count of red ✗ marks, 0 if none>,
+            "redUnderlines": ["exact phrase underlined in red", "another phrase"],
+            "redStrikethroughs": ["exact phrase struck through in red"],
+            "writtenComments": "any words, scores or notes written in red ink. Empty string if none."
+          },
+          "hasTeacherMarking": <boolean — true if ANY red ink is present>,
+          "studentCorrections": "Any text the student added or rewrote in GREEN ink after teacher feedback. Empty string if none.",
           "autoScore": <integer, marks awarded, 0 to the maximum stated in marks field>,
           "scoreRationale": "Precise explanation of each mark awarded or withheld. Quote the student's exact words.",
           "whatIsRight": "What the student correctly stated. Empty string if nothing is correct.",
@@ -66,6 +95,28 @@ The paper has already been marked by a teacher using red ink. Your job is to:
 3. Estimate the score based on the teacher's ticks and crosses
 4. Flag questions where the student needs further Socratic discussion (less than full marks)
 
+━━━ INK COLOUR GUIDE — read this before attributing ANY annotation ━━━
+
+STUDENT writes in PENCIL (grey/graphite), BLUE ink, or BLACK ink:
+  • Original answers
+  • Words the student crossed out when they changed their mind (blue/black/pencil strikethrough = student self-correction, NOT teacher feedback)
+  → All blue/black/pencil writing belongs in "studentAnswer".
+  → Use ~~word~~ notation for anything the student struck through.
+
+TEACHER marks in RED ink ONLY:
+  • Ticks ✓ (correct), crosses ✗ (wrong), circled words
+  • Red underlines drawn under specific words or phrases
+  • Red strikethroughs drawn through specific words or phrases
+  • Written scores, comments or corrections in red
+  → Describe ALL of these in "teacherFeedback" as a precise prose description.
+  → Also capture them in "teacherAnnotations" as a structured object.
+
+STUDENT CORRECTIONS after teacher feedback: GREEN ink rewrites or additions.
+
+CRITICAL: A strikethrough in blue/black/pencil is the STUDENT changing their mind.
+          A strikethrough in RED is the TEACHER crossing out incorrect text.
+          Never confuse the two.
+
 Return a single JSON object — nothing else:
 {
   "paperTitle": "Detected paper name or 'PSLE Science Practice Paper' if unknown",
@@ -77,8 +128,15 @@ Return a single JSON object — nothing else:
       "topic": "PSLE Science topic",
       "question": "Verbatim printed question text",
       "marks": <total marks for this question or part>,
-      "studentAnswer": "Original handwritten answer in pencil or blue/black ink",
-      "teacherFeedback": "Everything in red ink — describe ticks (✓), crosses (✗), underlines, written comments precisely",
+      "studentAnswer": "Original handwritten answer in pencil or blue/black ink. Use ~~word~~ for anything the student struck through in blue/black/pencil.",
+      "teacherFeedback": "Precise prose description of EVERYTHING in red ink: describe ticks ✓ and where they appear, crosses ✗ and where, phrases underlined in red (quote the exact phrase), phrases struck through in red (quote the exact phrase), and any written red ink comments. Empty string if there are no red marks.",
+      "teacherAnnotations": {
+        "ticks": <integer count of red ✓, 0 if none>,
+        "crosses": <integer count of red ✗, 0 if none>,
+        "redUnderlines": ["exact underlined phrase", "another"],
+        "redStrikethroughs": ["exact phrase struck through in red"],
+        "writtenComments": "words/scores written in red. Empty string if none."
+      },
       "studentCorrections": "Any green ink rewrites by the student. Empty string if none.",
       "hasTeacherMarking": <boolean>,
       "estimatedScore": <estimated marks based on teacher ticks/crosses, integer 0 to marks>,
@@ -91,6 +149,14 @@ Process every question in the paper. Do not skip any.`;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+interface TeacherAnnotations {
+  ticks: number;
+  crosses: number;
+  redUnderlines: string[];
+  redStrikethroughs: string[];
+  writtenComments: string;
+}
+
 interface QuestionResult {
   questionNumber: number;
   part: string;
@@ -99,6 +165,8 @@ interface QuestionResult {
   marks: number;
   studentAnswer: string;
   teacherMarking?: string;
+  teacherAnnotations?: TeacherAnnotations;
+  studentCorrections?: string;
   hasTeacherMarking: boolean;
   autoScore: number;
   scoreRationale: string;
@@ -131,6 +199,7 @@ interface DiscussQuestion {
   marks: number;
   studentAnswer: string;
   teacherFeedback: string;
+  teacherAnnotations?: TeacherAnnotations;
   studentCorrections: string;
   hasTeacherMarking: boolean;
   estimatedScore: number;
@@ -168,14 +237,14 @@ function buildTopicAnalysis(sections: SectionResult[]): TopicSummary[] {
       });
     }
   }
-  return [...topicMap.entries()].map(([topic, { attained, total }]) => {
+  return Array.from(topicMap.entries()).map(([topic, { attained, total }]) => {
     const pct = total === 0 ? 0 : Math.round((attained / total) * 100);
     return {
       topic,
       marksAttained: attained,
       totalMarks: total,
       percentage: pct,
-      status: pct >= 75 ? "strong" : pct >= 50 ? "needs-work" : "weak",
+      status: (pct >= 75 ? "strong" : pct >= 50 ? "needs-work" : "weak") as "strong" | "needs-work" | "weak",
     };
   }).sort((a, b) => a.percentage - b.percentage); // weakest first
 }
@@ -252,8 +321,8 @@ export async function POST(req: NextRequest) {
               {
                 type: "text",
                 text: mode === "mark"
-                  ? "Process this full exam paper. Score every question and return the complete JSON report."
-                  : "This paper has been marked by a teacher. Extract every question and the teacher's red ink feedback. Return the complete JSON report.",
+                  ? "Process this full exam paper. Score every question and return the complete JSON report. Pay careful attention to ink colours: blue/black/pencil = student, red = teacher only."
+                  : "This paper has been marked by a teacher. Extract every question and the teacher's red ink feedback. Return the complete JSON report. Pay careful attention to ink colours: blue/black/pencil = student (including student strikethroughs), red = teacher only.",
               },
             ],
           },

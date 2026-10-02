@@ -7,6 +7,14 @@ import { useState, useRef } from "react";
 type Mode = "mark" | "discuss";
 type Step = "choose" | "upload" | "payment" | "processing" | "report";
 
+interface TeacherAnnotations {
+  ticks: number;
+  crosses: number;
+  redUnderlines: string[];
+  redStrikethroughs: string[];
+  writtenComments: string;
+}
+
 interface QuestionResult {
   questionNumber: number;
   part: string;
@@ -14,11 +22,13 @@ interface QuestionResult {
   question: string;
   marks: number;
   studentAnswer: string;
+  studentCorrections?: string;
   autoScore: number;
   scoreRationale: string;
   whatIsRight: string;
   whatIsMissing: string;
   teacherMarking?: string;
+  teacherAnnotations?: TeacherAnnotations;
   hasTeacherMarking: boolean;
 }
 
@@ -55,6 +65,7 @@ interface DiscussQuestion {
   marks: number;
   studentAnswer: string;
   teacherFeedback: string;
+  teacherAnnotations?: TeacherAnnotations;
   studentCorrections: string;
   estimatedScore: number;
   needsDiscussion: boolean;
@@ -97,6 +108,115 @@ const TIERS = [
     highlight: false,
   },
 ];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/**
+ * Renders text that may contain ~~strikethrough~~ segments (student self-corrections).
+ * Returns an array of React nodes — use inside a <p> or <span>.
+ */
+function renderStudentText(text: string): React.ReactNode[] {
+  const parts = text.split(/(~~[^~]+~~)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("~~") && part.endsWith("~~")) {
+      const inner = part.slice(2, -2);
+      return (
+        <s key={i} style={{ color: "#888", textDecorationColor: "#aaa", textDecorationStyle: "solid" }}>
+          {inner}
+        </s>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+/**
+ * Visual panel showing teacher red-ink annotations with actual underlines and strikethroughs.
+ */
+function TeacherAnnotationsPanel({ annotations, fallbackText }: {
+  annotations?: TeacherAnnotations;
+  fallbackText?: string;
+}) {
+  const hasTicks = annotations && annotations.ticks > 0;
+  const hasCrosses = annotations && annotations.crosses > 0;
+  const hasUnderlines = annotations && annotations.redUnderlines && annotations.redUnderlines.length > 0;
+  const hasStrikethroughs = annotations && annotations.redStrikethroughs && annotations.redStrikethroughs.length > 0;
+  const hasComments = annotations && annotations.writtenComments;
+  const hasAny = hasTicks || hasCrosses || hasUnderlines || hasStrikethroughs || hasComments;
+
+  if (!hasAny && !fallbackText) return null;
+
+  return (
+    <div style={{ background: "#dc262608", borderRadius: 8, padding: "10px 12px", borderLeft: "3px solid #dc2626" }}>
+      <p style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        🔴 Teacher&rsquo;s Red Ink
+      </p>
+
+      {hasAny ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {/* Ticks and crosses */}
+          {(hasTicks || hasCrosses) && (
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              {hasTicks && (
+                <span style={{ color: "#16a34a", fontWeight: 700, fontSize: 15 }}>
+                  {"✓".repeat(Math.min(annotations!.ticks, 8))}
+                  {annotations!.ticks > 8 ? ` ×${annotations!.ticks}` : ""}
+                </span>
+              )}
+              {hasCrosses && (
+                <span style={{ color: "#dc2626", fontWeight: 700, fontSize: 15 }}>
+                  {"✗".repeat(Math.min(annotations!.crosses, 8))}
+                  {annotations!.crosses > 8 ? ` ×${annotations!.crosses}` : ""}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Red underlines */}
+          {hasUnderlines && (
+            <div>
+              <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 600, marginRight: 6 }}>Underlined:</span>
+              <span style={{ fontSize: 13, color: "var(--fg)" }}>
+                {annotations!.redUnderlines.map((phrase, i) => (
+                  <span key={i}>
+                    <span style={{ textDecoration: "underline", textDecorationColor: "#dc2626", textUnderlineOffset: 3 }}>
+                      {phrase}
+                    </span>
+                    {i < annotations!.redUnderlines.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+              </span>
+            </div>
+          )}
+
+          {/* Red strikethroughs */}
+          {hasStrikethroughs && (
+            <div>
+              <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 600, marginRight: 6 }}>Crossed out:</span>
+              <span style={{ fontSize: 13, color: "var(--fg)" }}>
+                {annotations!.redStrikethroughs.map((phrase, i) => (
+                  <span key={i}>
+                    <s style={{ color: "#dc2626", textDecorationColor: "#dc2626" }}>{phrase}</s>
+                    {i < annotations!.redStrikethroughs.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+              </span>
+            </div>
+          )}
+
+          {/* Written comments */}
+          {hasComments && (
+            <p style={{ margin: 0, fontSize: 13, color: "#dc2626", fontStyle: "italic" }}>
+              &ldquo;{annotations!.writtenComments}&rdquo;
+            </p>
+          )}
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{fallbackText}</p>
+      )}
+    </div>
+  );
+}
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -143,6 +263,10 @@ function QuestionCard({
   const score = isMarkQ ? q.autoScore : (q as DiscussQuestion).estimatedScore;
   const total = q.marks;
 
+  // Teacher annotations — present in both modes
+  const annotations = q.teacherAnnotations;
+  const teacherText = isMarkQ ? (q as QuestionResult).teacherMarking : (q as DiscussQuestion).teacherFeedback;
+
   return (
     <div style={{
       background: "var(--card)", border: "1px solid var(--rule)", borderRadius: 10,
@@ -176,31 +300,48 @@ function QuestionCard({
             <p style={{ fontSize: 14, color: "var(--fg)", margin: 0, lineHeight: 1.6 }}>{q.question}</p>
           </div>
 
+          {/* Student's answer — with visual strikethroughs for self-corrections */}
           {q.studentAnswer && (
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--mid)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Student&rsquo;s Answer</p>
-              <p style={{ fontSize: 14, color: "var(--fg)", margin: 0, fontStyle: "italic", lineHeight: 1.6 }}>{q.studentAnswer}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--mid)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Student&rsquo;s Answer <span style={{ fontSize: 11, fontWeight: 400, color: "#888" }}>(pencil / blue / black ink)</span>
+              </p>
+              <p style={{ fontSize: 14, color: "var(--fg)", margin: 0, fontStyle: "italic", lineHeight: 1.7 }}>
+                {renderStudentText(q.studentAnswer)}
+              </p>
             </div>
           )}
 
-          {isMarkQ && q.whatIsRight && (
+          {/* Student corrections in green (if any) */}
+          {q.studentCorrections && (
+            <div style={{ background: "#16a34a0a", borderRadius: 8, padding: "8px 12px", borderLeft: "3px solid #16a34a" }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "#16a34a", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                ✏️ Student&rsquo;s corrections (green ink)
+              </p>
+              <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{q.studentCorrections}</p>
+            </div>
+          )}
+
+          {/* Teacher annotations panel — red ink with visual underlines and strikethroughs */}
+          {q.hasTeacherMarking && (
+            <TeacherAnnotationsPanel
+              annotations={annotations}
+              fallbackText={teacherText || undefined}
+            />
+          )}
+
+          {/* Marking mode: what's right / what's missing */}
+          {isMarkQ && (q as QuestionResult).whatIsRight && (
             <div style={{ background: "#16a34a12", borderRadius: 8, padding: "10px 12px", borderLeft: "3px solid #16a34a" }}>
               <p style={{ fontSize: 12, fontWeight: 600, color: "#16a34a", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>✓ What&rsquo;s right</p>
-              <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{q.whatIsRight}</p>
+              <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{(q as QuestionResult).whatIsRight}</p>
             </div>
           )}
 
-          {isMarkQ && q.whatIsMissing && (
+          {isMarkQ && (q as QuestionResult).whatIsMissing && (
             <div style={{ background: "#dc262612", borderRadius: 8, padding: "10px 12px", borderLeft: "3px solid #dc2626" }}>
               <p style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>✗ What&rsquo;s missing</p>
-              <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{q.whatIsMissing}</p>
-            </div>
-          )}
-
-          {"teacherFeedback" in q && q.teacherFeedback && (
-            <div style={{ background: "#dc262612", borderRadius: 8, padding: "10px 12px", borderLeft: "3px solid #dc2626" }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Teacher&rsquo;s Marking</p>
-              <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{q.teacherFeedback}</p>
+              <p style={{ fontSize: 13, color: "var(--fg)", margin: 0, lineHeight: 1.5 }}>{(q as QuestionResult).whatIsMissing}</p>
             </div>
           )}
 
@@ -326,10 +467,8 @@ export default function MarkingCentrePage() {
   }
 
   function handleStartSage(q: QuestionResult | DiscussQuestion) {
-    // Navigate to Sage with the question pre-loaded
-    // In production: pass question data via sessionStorage or URL params
-    const questionData = JSON.stringify(q);
-    sessionStorage.setItem("sage_question", questionData);
+    // Pass question to Sage via sessionStorage — key must match what app/page.tsx reads
+    sessionStorage.setItem("sage_pending_question", JSON.stringify(q));
     window.location.href = "/";
   }
 
