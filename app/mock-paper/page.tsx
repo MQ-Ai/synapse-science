@@ -90,7 +90,7 @@ export default function MockPaperPage() {
     setError("");
     setSubmitting(true);
     try {
-      const res = await fetch("/api/mock-paper/mark", {
+      const res = await fetch("/api/mock-paper", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ questions, answers }),
