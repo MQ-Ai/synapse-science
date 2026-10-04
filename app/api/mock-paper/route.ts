@@ -21,8 +21,17 @@ interface RequestBody {
 interface MarkingResult {
   id: string;
   score: number;
+  scoreRationale: string;
   whatIsRight: string;
   whatIsMissing: string;
+}
+
+export interface TopicSummary {
+  topic: string;
+  marksAttained: number;
+  totalMarks: number;
+  percentage: number;
+  status: "strong" | "needs-work" | "weak";
 }
 
 const SYSTEM_PROMPT = `You are a Singapore PSLE Science Chief Examiner with 20 years of marking experience, marking a student's mock paper.
@@ -42,17 +51,50 @@ const SYSTEM_PROMPT = `You are a Singapore PSLE Science Chief Examiner with 20 y
 - The maximum score for any question equals exactly the marks stated in the question
 - If an answer is partially correct, deduct for each missing mechanism and state exactly what is missing
 
-Return ONLY a JSON object (no other text, no markdown fences):
+Return ONLY a JSON object (no markdown fences, no other text):
 {
   "results": [
     {
       "id": "<question id>",
       "score": <integer 0 to marks>,
+      "scoreRationale": "Precise explanation of EACH mark awarded or withheld. Quote the student's exact words. E.g.: '1 mark awarded: student wrote \\"the liquid evaporates\\" — correct process named. 1 mark withheld: student did not state that evaporation requires heat energy from the surroundings, leaving the mechanism incomplete.'",
       "whatIsRight": "Quote the student's exact words that earned marks. Empty string if nothing correct.",
       "whatIsMissing": "Precisely what mechanism or detail must be added for full marks. Empty string if full marks awarded."
     }
   ]
 }`;
+
+function buildTopicAnalysis(
+  questions: Question[],
+  results: MarkingResult[]
+): TopicSummary[] {
+  const topicMap = new Map<string, { attained: number; total: number }>();
+  for (const q of questions) {
+    const r = results.find((x) => x.id === q.id);
+    const score = r ? r.score : 0;
+    const t = q.topic || "General Science";
+    const existing = topicMap.get(t) ?? { attained: 0, total: 0 };
+    topicMap.set(t, {
+      attained: existing.attained + score,
+      total: existing.total + q.marks,
+    });
+  }
+  return Array.from(topicMap.entries())
+    .map(([topic, { attained, total }]) => {
+      const pct = total === 0 ? 0 : Math.round((attained / total) * 100);
+      return {
+        topic,
+        marksAttained: attained,
+        totalMarks: total,
+        percentage: pct,
+        status: (pct >= 75 ? "strong" : pct >= 50 ? "needs-work" : "weak") as
+          | "strong"
+          | "needs-work"
+          | "weak",
+      };
+    })
+    .sort((a, b) => a.percentage - b.percentage); // weakest first
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: RequestBody;
@@ -109,8 +151,8 @@ Student answer: ${answer}`;
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4000,
+        model: "claude-sonnet-4-5",
+        max_tokens: 6000,
         system: SYSTEM_PROMPT,
         messages: [
           {
@@ -205,9 +247,12 @@ Student answer: ${answer}`;
   const results: MarkingResult[] = parsed.results.map((r) => ({
     id: String(r.id),
     score: Math.max(0, Math.floor(Number(r.score))),
+    scoreRationale: String(r.scoreRationale ?? ""),
     whatIsRight: String(r.whatIsRight ?? ""),
     whatIsMissing: String(r.whatIsMissing ?? ""),
   }));
 
-  return NextResponse.json({ results });
+  const topicAnalysis = buildTopicAnalysis(body.questions, results);
+
+  return NextResponse.json({ results, topicAnalysis });
 }

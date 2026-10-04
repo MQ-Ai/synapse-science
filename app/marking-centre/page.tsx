@@ -657,6 +657,15 @@ export default function MarkingCentrePage() {
     <>
       <style>{accentCSS}</style>
       <div style={pageStyle}>
+
+        {/* Nav bar */}
+        <div style={{ background: "var(--card)", borderBottom: "1px solid var(--rule)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 16, position: "sticky", top: 0, zIndex: 10 }}>
+          <a href="/" style={{ fontSize: 14, color: "var(--mid)", textDecoration: "none" }}>← Sage</a>
+          <span style={{ color: "var(--rule)" }}>|</span>
+          <a href="/repository" style={{ fontSize: 14, color: "var(--mid)", textDecoration: "none" }}>📚 My Repository</a>
+          <span style={{ marginLeft: "auto", fontSize: 15, fontWeight: 700, color: "var(--fg)" }}>📋 Marking Centre</span>
+        </div>
+
         <div style={containerStyle}>
 
           {/* Header */}
