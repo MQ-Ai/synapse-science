@@ -533,27 +533,47 @@ export default function PSLEPage() {
             )}
           </div>
 
-          {/* Parts list — all on one page */}
+          {/* Parts list with inline Sage expansion */}
           <div className="space-y-3">
             {selectedGroup.map((p: PSLEQuestion) => (
-              <button
-                key={p.id}
-                onClick={() => setSagePartInGroup(p)}
-                className="w-full text-left rounded-2xl bg-white border border-orange-100 p-5 hover:border-orange-300 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "#f97316" }}>
-                    {p.part || "✦"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-xs font-semibold text-gray-400">{p.marks} mark{p.marks !== 1 ? "s" : ""}</span>
+              <div key={p.id}>
+                {/* Part button */}
+                <button
+                  onClick={() => setSagePartInGroup(sagePartInGroup?.id === p.id ? null : p)}
+                  className={`w-full text-left rounded-2xl p-5 transition-all group ${
+                    sagePartInGroup?.id === p.id
+                      ? "bg-white border border-orange-300 shadow-md"
+                      : "bg-white border border-orange-100 hover:border-orange-300 hover:shadow-md"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "#f97316" }}>
+                      {p.part || "✦"}
                     </div>
-                    <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">{p.question}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-xs font-semibold text-gray-400">{p.marks} mark{p.marks !== 1 ? "s" : ""}</span>
+                      </div>
+                      <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">{p.question}</p>
+                    </div>
+                    <span className={`transition-colors text-lg flex-shrink-0 ${sagePartInGroup?.id === p.id ? "text-orange-500" : "text-orange-300 group-hover:text-orange-500"}`}>
+                      {sagePartInGroup?.id === p.id ? "▼" : "→"}
+                    </span>
                   </div>
-                  <span className="text-orange-300 group-hover:text-orange-500 transition-colors text-lg flex-shrink-0">→</span>
-                </div>
-              </button>
+                </button>
+
+                {/* Inline Sage dialogue — only for selected part */}
+                {sagePartInGroup?.id === p.id && student && (
+                  <div className="mt-2 rounded-2xl overflow-hidden border border-orange-200" style={{ background: "#FFF8F2", height: "500px" }}>
+                    <PSLESocraticTerminal
+                      key={p.id}
+                      question={p}
+                      student={student}
+                      onBack={() => setSagePartInGroup(null)}
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
@@ -561,37 +581,6 @@ export default function PSLEPage() {
             Tap any part above to answer with Sage
           </div>
         </div>
-
-        {/* Sage modal overlay */}
-        {sagePartInGroup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
-            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", maxHeight: "90vh" }}>
-              {/* Modal header */}
-              <div className="px-6 py-4 border-b border-orange-100 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)" }}>
-                <div>
-                  <h3 className="font-bold text-gray-800 text-sm">{first.year} Q{first.questionNumber}{sagePartInGroup.part} — {first.topic}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{sagePartInGroup.marks} mark{sagePartInGroup.marks !== 1 ? "s" : ""}</p>
-                </div>
-                <button
-                  onClick={() => setSagePartInGroup(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Sage terminal inside modal */}
-              <div className="flex-1 overflow-hidden">
-                <PSLESocraticTerminal
-                  key={sagePartInGroup.id}
-                  question={sagePartInGroup}
-                  student={student!}
-                  onBack={() => setSagePartInGroup(null)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
