@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { PSLEQuestion } from "@/lib/psle-questions";
+import { saveToRepository } from "@/lib/repository";
 
 function SageMascot({ width, height, bodyFill = "#FBBF9A" }: { width: number; height: number; bodyFill?: string }) {
   return (
@@ -277,6 +278,28 @@ export default function PSLESocraticTerminal({ question, student, onBack }: Prop
     return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
   }, []);
 
+  // Save score to repository when question is completed
+  useEffect(() => {
+    if (!isComplete || totalStars === 0) return;
+    try {
+      const repoQ = {
+        id: `sage-${question.id}`,
+        savedAt: Date.now(),
+        paperTitle: `Synapse PSLE ${question.year}-${question.questionNumber}`,
+        questionNumber: question.questionNumber,
+        part: question.part,
+        topic: question.topic,
+        question: question.question,
+        marks: question.marks,
+        firstAttemptAnswer: messages.filter((m: any) => m.role === "student").map((m: any) => m.content).join(" | "),
+        firstAttemptScore: totalStars,
+      };
+      saveToRepository(student.email, repoQ);
+    } catch {
+      // Silently fail if repo save doesn't work
+    }
+  }, [isComplete, totalStars, question, messages, student]);
+
   function pickVoice(): SpeechSynthesisVoice | undefined {
     const voices = voicesRef.current.length
       ? voicesRef.current
@@ -455,12 +478,15 @@ export default function PSLESocraticTerminal({ question, student, onBack }: Prop
       {/* Header */}
       <header className="px-4 py-4 border-b border-orange-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <button
-            onClick={() => { window.speechSynthesis?.cancel(); onBack(); }}
-            className="text-gray-400 hover:text-gray-600 transition-colors text-sm flex items-center gap-1 mr-1"
-          >
-            ← Back
-          </button>
+          {!isComplete && (
+            <button
+              onClick={() => { window.speechSynthesis?.cancel(); onBack(); }}
+              className="text-gray-400 hover:text-gray-600 transition-colors text-sm flex items-center gap-1 mr-1"
+              title="Skip this question"
+            >
+              ⊘ Skip
+            </button>
+          )}
           <SageMascot width={32} height={38} />
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-gray-800 text-sm truncate">
