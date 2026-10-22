@@ -462,6 +462,19 @@ export default function PSLEPage() {
     return topicMatch && yearMatch;
   });
 
+  // Group parts into whole questions, preserving order of first occurrence
+  const questionGroups = (() => {
+    const map = new Map<string, PSLEQuestion[]>();
+    for (const q of filteredQuestions) {
+      const key = `${q.year}-${q.questionNumber}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(q);
+    }
+    return Array.from(map.values()).map(parts =>
+      [...parts].sort((a, b) => (a.part || "").localeCompare(b.part || ""))
+    );
+  })();
+
   if (selectedQuestion && selectedQuestion.id) {
     return (
       <>
@@ -599,34 +612,37 @@ export default function PSLEPage() {
               {YEARS.map((y: number) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <div className="ml-auto text-sm text-gray-400 self-center">{filteredQuestions.length} question{filteredQuestions.length !== 1 ? "s" : ""}</div>
+          <div className="ml-auto text-sm text-gray-400 self-center">{questionGroups.length} question{questionGroups.length !== 1 ? "s" : ""}</div>
         </div>
 
-        {/* Question Cards */}
-        <div className="grid gap-3">
-          {filteredQuestions.map((q: PSLEQuestion) => {
-            const groupKey = `Synapse PSLE ${q.year}-${q.questionNumber}`;
-            const isSaved = savedGroups.has(`${groupKey}-${q.questionNumber}`);
+        {/* Question Cards — grouped by whole question */}
+        <div className="grid gap-4">
+          {questionGroups.map((parts) => {
+            const first = parts[0];
+            const groupKey = `Synapse PSLE ${first.year}-${first.questionNumber}`;
+            const isSaved = savedGroups.has(`${groupKey}-${first.questionNumber}`);
+            const totalMarks = parts.reduce((sum: number, p: PSLEQuestion) => sum + p.marks, 0);
+            const sharedContext = first.context || parts.find((p: PSLEQuestion) => p.context)?.context;
             return (
-              <button key={q.id} onClick={() => handleQuestionClick(q)} className="w-full text-left rounded-2xl bg-white border border-orange-100 p-5 hover:border-orange-300 hover:shadow-md transition-all duration-200 group">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ background: topicColor(q.topic) }}>
-                    {topicEmoji(q.topic)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-xs font-semibold text-orange-500 bg-orange-50 rounded-full px-2 py-0.5">{q.year} Q{q.questionNumber}{q.part}</span>
-                      <span className="text-xs text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">{q.topic}</span>
-                      <span className="text-xs text-gray-400 ml-auto">{q.marks} mark{q.marks !== 1 ? "s" : ""}</span>
+              <div key={groupKey} className="rounded-2xl overflow-hidden bg-white border border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-200">
+                {/* Card Header */}
+                <div className="px-5 py-4" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)", borderBottom: "1px solid #FFD8B8" }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white" style={{ background: "linear-gradient(135deg, #f97316, #ea580c)" }}>
+                        {first.year} Q{first.questionNumber}
+                      </span>
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full text-orange-700 bg-orange-100">
+                        {first.topic}
+                      </span>
+                      <span className="text-xs text-gray-400 font-medium">
+                        {totalMarks} mark{totalMarks !== 1 ? "s" : ""}
+                      </span>
                     </div>
-                    <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">{q.question}</p>
-                  </div>
-                  <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                    {/* Save to Repository button */}
                     <button
-                      onClick={(e) => handleSave(e, q)}
+                      onClick={(e) => handleSave(e, first)}
                       title={isSaved ? "Saved to Repository" : "Save whole question to Repository"}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all"
+                      className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all"
                       style={{
                         background: isSaved ? "#16a34a" : "#f0fdf4",
                         color: isSaved ? "white" : "#16a34a",
@@ -635,10 +651,39 @@ export default function PSLEPage() {
                     >
                       {isSaved ? "✓" : "💾"}
                     </button>
-                    <div className="text-orange-300 group-hover:text-orange-500 transition-colors text-lg">→</div>
                   </div>
                 </div>
-              </button>
+
+                {/* Shared Context */}
+                {sharedContext && (
+                  <div className="px-5 py-3" style={{ background: "#FFFBF6", borderBottom: "1px solid #FFE8CC" }}>
+                    <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-1.5">Context</p>
+                    <p className="text-sm text-gray-600 leading-relaxed">{sharedContext}</p>
+                  </div>
+                )}
+
+                {/* Individual Parts — each clickable */}
+                <div className="divide-y divide-orange-50">
+                  {parts.map((p: PSLEQuestion) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleQuestionClick(p)}
+                      className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-orange-50/60 transition-colors group"
+                    >
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5" style={{ background: "#f97316" }}>
+                        {p.part || "✦"}
+                      </span>
+                      <p className="flex-1 text-sm text-gray-800 leading-relaxed font-medium">{p.question}</p>
+                      <div className="flex-shrink-0 flex items-center gap-2 mt-0.5">
+                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-md text-orange-600 bg-orange-50 border border-orange-100">
+                          {p.marks}m
+                        </span>
+                        <span className="text-orange-300 group-hover:text-orange-500 transition-colors text-base">→</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             );
           })}
         </div>
