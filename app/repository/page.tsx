@@ -335,16 +335,16 @@ export default function RepositoryPage() {
 
   const style = `
     :root {
-      --bg: #1a1a1a; --card: #242424; --fg: #f0f0f0; --mid: #888;
-      --rule: #333; --accent: #f97316;
+      --bg: #fff7ed; --card: #ffffff; --fg: #1c1917; --mid: #78716c;
+      --rule: #fed7aa; --accent: #f97316;
     }
-    @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
-      --bg: #f8f8f8; --card: #ffffff; --fg: #1a1a1a; --mid: #666;
-      --rule: #e5e5e5; --accent: #f97316;
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+      --bg: #1c0f00; --card: #2a1800; --fg: #fef3c7; --mid: #a8a29e;
+      --rule: #3d2200; --accent: #fb923c;
     }}
-    :root[data-theme="light"] {
-      --bg: #f8f8f8; --card: #ffffff; --fg: #1a1a1a; --mid: #666;
-      --rule: #e5e5e5; --accent: #f97316;
+    :root[data-theme="dark"] {
+      --bg: #1c0f00; --card: #2a1800; --fg: #fef3c7; --mid: #a8a29e;
+      --rule: #3d2200; --accent: #fb923c;
     }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg); }
@@ -358,18 +358,27 @@ export default function RepositoryPage() {
       <div style={{ minHeight: "100vh", background: "var(--bg)", paddingBottom: selectedCount > 0 ? 90 : 60 }}>
 
         {/* Nav */}
-        <div style={{ background: "var(--card)", borderBottom: "1px solid var(--rule)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", borderBottom: "2px solid #fed7aa", padding: "14px 20px", display: "flex", alignItems: "center", gap: 16 }}>
           <a href="/" style={{ fontSize: 14, color: "var(--mid)", textDecoration: "none" }}>← Sage</a>
           <span style={{ color: "var(--rule)" }}>|</span>
           <a href="/marking-centre" style={{ fontSize: 14, color: "var(--mid)", textDecoration: "none" }}>Marking Centre</a>
           <span style={{ marginLeft: "auto", fontSize: 15, fontWeight: 700, color: "var(--fg)" }}>📚 My Repository</span>
         </div>
 
+        {/* Hero banner */}
+        <div style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 40%, #7c3aed 100%)", padding: "28px 20px 32px" }}>
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.75)", letterSpacing: "0.06em", textTransform: "uppercase" }}>📚 My Repository</p>
+            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>Question Bank</h1>
+            <p style={{ margin: "6px 0 0", fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>Your saved questions, scored attempts, and Sage sessions — all in one place.</p>
+          </div>
+        </div>
+
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* No email yet */}
           {!email && (
-            <div style={{ background: "var(--card)", borderRadius: 16, padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ background: "var(--card)", borderRadius: 16, padding: 28, display: "flex", flexDirection: "column", gap: 16, border: "1px solid var(--rule)" }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: 18, color: "var(--fg)" }}>Your Question Repository</p>
               <p style={{ margin: 0, fontSize: 14, color: "var(--mid)", lineHeight: 1.5 }}>
                 Enter your email to load your saved questions.
@@ -442,10 +451,10 @@ export default function RepositoryPage() {
               {/* Mock paper builder controls */}
               {selectionMode && (
                 <div style={{
-                  background: "var(--card)", borderRadius: 12, padding: "14px 16px",
-                  border: "1px solid var(--rule)", display: "flex", flexDirection: "column", gap: 12,
+                  background: "linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%)", borderRadius: 12, padding: "14px 16px",
+                  border: "2px solid #fed7aa", display: "flex", flexDirection: "column", gap: 12,
                 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--fg)" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#c2410c" }}>
                     📝 Build a Mock Paper
                   </p>
                   <p style={{ margin: 0, fontSize: 12, color: "var(--mid)", lineHeight: 1.5 }}>

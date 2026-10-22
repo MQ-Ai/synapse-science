@@ -568,22 +568,22 @@ export default function MarkingCentrePage() {
 
   const accentCSS = `
     :root {
-      --accent: #C84B1F;
-      --bg: #FAFAF8;
-      --fg: #1A1A18;
-      --mid: #5A5A54;
-      --rule: #E0DED8;
-      --card: #F2F0EB;
+      --accent: #f97316;
+      --bg: #fff7ed;
+      --fg: #1c1917;
+      --mid: #78716c;
+      --rule: #fed7aa;
+      --card: #ffffff;
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        --bg: #18180F; --fg: #EEEEE6; --mid: #9A9A8C;
-        --rule: #2E2E24; --accent: #E5632E; --card: #222218;
+        --bg: #1c0f00; --fg: #fef3c7; --mid: #a8a29e;
+        --rule: #3d2200; --accent: #fb923c; --card: #2a1800;
       }
     }
     :root[data-theme="dark"] {
-      --bg: #18180F; --fg: #EEEEE6; --mid: #9A9A8C;
-      --rule: #2E2E24; --accent: #E5632E; --card: #222218;
+      --bg: #1c0f00; --fg: #fef3c7; --mid: #a8a29e;
+      --rule: #3d2200; --accent: #fb923c; --card: #2a1800;
     }
   `;
 
@@ -659,7 +659,7 @@ export default function MarkingCentrePage() {
       <div style={pageStyle}>
 
         {/* Nav bar */}
-        <div style={{ background: "var(--card)", borderBottom: "1px solid var(--rule)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 16, position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", borderBottom: "2px solid #fed7aa", padding: "12px 20px", display: "flex", alignItems: "center", gap: 16, position: "sticky", top: 0, zIndex: 10 }}>
           <a href="/" style={{ fontSize: 14, color: "var(--mid)", textDecoration: "none" }}>← Sage</a>
           <span style={{ color: "var(--rule)" }}>|</span>
           <a href="/repository" style={{ fontSize: 14, color: "var(--mid)", textDecoration: "none" }}>📚 My Repository</a>
@@ -669,12 +669,12 @@ export default function MarkingCentrePage() {
         <div style={containerStyle}>
 
           {/* Header */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 8 }}>
-              Marking Centre
+          <div style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 45%, #7c3aed 100%)", borderRadius: 18, padding: "28px 24px", marginTop: 4 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>
+              📋 Marking Centre
             </div>
-            <h1 style={headingStyle}>Full Paper Assessment</h1>
-            <p style={subStyle}>Upload a complete Science exam paper for marking, scoring, and personalised Sage sessions.</p>
+            <h1 style={{ ...headingStyle, color: "#fff", fontSize: 26 }}>Full Paper Assessment</h1>
+            <p style={{ ...subStyle, color: "rgba(255,255,255,0.85)", marginTop: 8 }}>Upload a complete Science exam paper for marking, scoring, and personalised Sage sessions.</p>
           </div>
 
           {/* ── Step: Choose mode ── */}
@@ -682,13 +682,13 @@ export default function MarkingCentrePage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <button
                 onClick={() => handleModeSelect("mark")}
-                style={{ ...cardStyle, cursor: "pointer", border: "2px solid var(--rule)", textAlign: "left", transition: "border-color 0.15s" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--rule)")}
+                style={{ ...cardStyle, cursor: "pointer", border: "2px solid #fed7aa", textAlign: "left", transition: "all 0.15s", background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#f97316"; e.currentTarget.style.boxShadow = "0 4px 20px #f9731620"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#fed7aa"; e.currentTarget.style.boxShadow = "none"; }}
               >
-                <div style={{ fontSize: 28 }}>📝</div>
+                <div style={{ fontSize: 32 }}>📝</div>
                 <div>
-                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 17, color: "var(--fg)" }}>Mark my paper</p>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 17, color: "#c2410c" }}>Mark my paper</p>
                   <p style={{ margin: 0, fontSize: 14, color: "var(--mid)", lineHeight: 1.6 }}>
                     Upload an unmarked paper with student answers. We&rsquo;ll score every question and generate a full report.
                   </p>
@@ -697,13 +697,13 @@ export default function MarkingCentrePage() {
 
               <button
                 onClick={() => handleModeSelect("discuss")}
-                style={{ ...cardStyle, cursor: "pointer", border: "2px solid var(--rule)", textAlign: "left", transition: "border-color 0.15s" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--rule)")}
+                style={{ ...cardStyle, cursor: "pointer", border: "2px solid #ede9fe", textAlign: "left", transition: "all 0.15s", background: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#7c3aed"; e.currentTarget.style.boxShadow = "0 4px 20px #7c3aed20"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#ede9fe"; e.currentTarget.style.boxShadow = "none"; }}
               >
-                <div style={{ fontSize: 28 }}>💬</div>
+                <div style={{ fontSize: 32 }}>💬</div>
                 <div>
-                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 17, color: "var(--fg)" }}>Discuss a marked paper</p>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 17, color: "#6d28d9" }}>Discuss a marked paper</p>
                   <p style={{ margin: 0, fontSize: 14, color: "var(--mid)", lineHeight: 1.6 }}>
                     Upload a teacher-marked paper. Skip straight to Socratic sessions on every question where marks were lost.
                   </p>
