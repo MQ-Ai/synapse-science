@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-opus-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 1800,
         system: EXTRACT_SYSTEM,
         messages: [{ role: "user", content: contentBlocks }],
@@ -212,8 +212,9 @@ export async function POST(req: NextRequest) {
 
     if (!response1.ok) {
       const err = await response1.text();
-      console.error("Anthropic vision error (pass 1):", err);
-      return NextResponse.json({ error: "Failed to read image" }, { status: 500 });
+      console.error("Anthropic vision error (pass 1):", response1.status, err);
+      const detail = response1.status === 400 ? "Invalid request" : response1.status === 401 ? "API key error" : `API error ${response1.status}`;
+      return NextResponse.json({ error: `Failed to read image (${detail}). Please try again.` }, { status: 500 });
     }
 
     const data1 = await response1.json() as { content: { text: string }[] };
@@ -256,7 +257,7 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
           body: JSON.stringify({
-            model: "claude-opus-4-5",
+            model: "claude-sonnet-4-6",
             max_tokens: 1800,
             system: VERIFY_SYSTEM,
             messages: [{ role: "user", content: verifyBlocks }],
@@ -322,7 +323,7 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
           body: JSON.stringify({
-            model: "claude-opus-4-5",
+            model: "claude-sonnet-4-6",
             max_tokens: 600,
             system: SCORE_SYSTEM,
             messages: [{ role: "user", content: scorePrompt }],

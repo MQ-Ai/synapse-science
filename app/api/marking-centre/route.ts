@@ -311,7 +311,7 @@ export async function POST(req: NextRequest) {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 8000,
         system: systemPrompt,
         messages: [
