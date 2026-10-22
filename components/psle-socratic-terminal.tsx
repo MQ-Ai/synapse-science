@@ -252,7 +252,7 @@ export default function PSLESocraticTerminal({ question, student, onBack }: Prop
   const [totalStars, setTotalStars] = useState(0);
   const [turnCount, setTurnCount] = useState(0);
   const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [showBreathing, setShowBreathing] = useState(true);
+  const [showBreathing, setShowBreathing] = useState(false);
   // Ref mirrors state so speak() can read current value without being a useEffect dependency
   const setShowBreathingSafe = (val: boolean) => {
     showBreathingRef.current = val;
@@ -260,8 +260,8 @@ export default function PSLESocraticTerminal({ question, student, onBack }: Prop
   };
   const [breathingKey, setBreathingKey] = useState(0);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
-  const showBreathingRef = useRef(true);
-  const ttsEnabledRef = useRef(true);
+  const showBreathingRef = useRef(false);
+  const ttsEnabledRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
