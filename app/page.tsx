@@ -347,6 +347,12 @@ export default function PSLEPage() {
   // Pending save: save once we have a student profile
   const [pendingSaveQ, setPendingSaveQ] = useState<PSLEQuestion | null>(null);
 
+  // Group session: all parts of a whole question shown at once with Answer/Skip
+  const [selectedGroup, setSelectedGroup] = useState<PSLEQuestion[] | null>(null);
+  const [answeredParts, setAnsweredParts] = useState<Set<string>>(new Set());
+  const [skippedParts, setSkippedParts] = useState<Set<string>>(new Set());
+  const [pendingGroup, setPendingGroup] = useState<PSLEQuestion[] | null>(null);
+
   // ── On mount: restore student + bridge from Marking Centre ─────────────────
   useEffect(() => {
     // 1. Restore student profile from localStorage
@@ -408,8 +414,15 @@ export default function PSLEPage() {
       setPendingSaveQ(null);
     }
 
-    if (pendingQuestion) { setSelectedQuestion(pendingQuestion); setPendingQuestion(null); }
-    if (pendingUpload) { setSelectedQuestion(pendingUpload as unknown as PSLEQuestion); setPendingUpload(null); }
+    if (pendingGroup) {
+      setSelectedGroup(pendingGroup); setAnsweredParts(new Set()); setSkippedParts(new Set());
+      setPendingGroup(null);
+    } else if (pendingQuestion && (pendingQuestion as PSLEQuestion).id) {
+      setSelectedQuestion(pendingQuestion); setPendingQuestion(null);
+    } else if (pendingUpload) {
+      setSelectedQuestion(pendingUpload as unknown as PSLEQuestion); setPendingUpload(null);
+    }
+    setPendingQuestion(null);
   }
 
   function handleUploadConfirm(q: UploadedQuestionPreview) {
@@ -456,6 +469,17 @@ export default function PSLEPage() {
     }
   }
 
+  function handleGroupClick(parts: PSLEQuestion[]) {
+    if (student) {
+      setSelectedGroup(parts);
+      setAnsweredParts(new Set());
+      setSkippedParts(new Set());
+    } else {
+      setPendingGroup(parts);
+      setPendingQuestion({} as PSLEQuestion); // fire email gate
+    }
+  }
+
   const filteredQuestions = PSLE_QUESTIONS.filter((q: PSLEQuestion) => {
     const topicMatch = filterTopic === "All Topics" || q.topic === filterTopic;
     const yearMatch = filterYear === "all" || q.year === filterYear;
@@ -498,17 +522,163 @@ export default function PSLEPage() {
           key={selectedQuestion.id}
           question={selectedQuestion}
           student={student!}
-          onBack={() => { setSelectedQuestion(null); setFromMarkingCentre(false); }}
+          onBack={() => {
+            // Mark part as answered when returning from a group session
+            if (selectedGroup) {
+              setAnsweredParts(prev => new Set(prev).add(selectedQuestion.id));
+            }
+            setSelectedQuestion(null);
+            setFromMarkingCentre(false);
+          }}
         />
       </>
+    );
+  }
+
+  // ── Group Session View ────────────────────────────────────────────────────
+  if (selectedGroup && !selectedQuestion) {
+    const first = selectedGroup[0];
+    const totalMarks = selectedGroup.reduce((sum: number, p: PSLEQuestion) => sum + p.marks, 0);
+    const sharedContext = first.context || selectedGroup.find((p: PSLEQuestion) => p.context)?.context;
+    const allDone = selectedGroup.every((p: PSLEQuestion) => answeredParts.has(p.id) || skippedParts.has(p.id));
+
+    return (
+      <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
+        {/* Nav bar */}
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-orange-100 px-5 py-3.5 flex items-center gap-3">
+          <button
+            onClick={() => { setSelectedGroup(null); setAnsweredParts(new Set()); setSkippedParts(new Set()); }}
+            className="flex items-center gap-1.5 text-sm font-medium text-orange-500 hover:text-orange-700 transition-colors"
+          >
+            ← Back
+          </button>
+          <div className="h-4 w-px bg-orange-200" />
+          <span className="text-sm font-semibold text-gray-700">{first.year} Q{first.questionNumber} · {first.topic}</span>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-5 py-6 flex flex-col gap-4">
+
+          {/* Header card */}
+          <div className="rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 py-5" style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 40%, #7c3aed 100%)" }}>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.2)" }}>
+                  {first.year} Q{first.questionNumber}
+                </span>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.15)" }}>
+                  {first.topic}
+                </span>
+                <span className="text-xs text-white/80 font-medium">{totalMarks} marks total</span>
+              </div>
+              <p className="text-white/75 text-xs mt-1">Choose which parts to practise with Sage</p>
+            </div>
+            {sharedContext && (
+              <div className="px-5 py-4" style={{ background: "#FFFBF6", borderTop: "1px solid #FFE8CC" }}>
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide mb-1.5">Context</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{sharedContext}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Part cards */}
+          {selectedGroup.map((p: PSLEQuestion) => {
+            const isDone = answeredParts.has(p.id);
+            const isSkipped = skippedParts.has(p.id);
+            return (
+              <div
+                key={p.id}
+                className="rounded-2xl overflow-hidden transition-all duration-200"
+                style={{
+                  border: isDone ? "1.5px solid #86efac" : isSkipped ? "1.5px solid #e5e7eb" : "1.5px solid #FFD8B8",
+                  background: isDone ? "#f0fdf4" : isSkipped ? "#f9fafb" : "#ffffff",
+                  opacity: isSkipped ? 0.65 : 1,
+                }}
+              >
+                <div className="px-5 py-4">
+                  {/* Part header */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ background: isDone ? "#16a34a" : isSkipped ? "#9ca3af" : "#f97316" }}
+                    >
+                      {isDone ? "✓" : (p.part || "✦")}
+                    </span>
+                    <span className="text-xs font-medium text-gray-400">{p.marks} mark{p.marks !== 1 ? "s" : ""}</span>
+                    {isSkipped && <span className="text-xs text-gray-400 ml-auto italic">Skipped</span>}
+                    {isDone && <span className="text-xs text-green-600 font-medium ml-auto">Answered ✅</span>}
+                  </div>
+
+                  {/* Question text */}
+                  <p className="text-sm text-gray-800 leading-relaxed font-medium mb-4">{p.question}</p>
+
+                  {/* Action buttons */}
+                  {!isDone && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSkippedParts(prev => { const s = new Set(prev); s.delete(p.id); return s; });
+                          handleQuestionClick(p);
+                        }}
+                        className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold transition-all active:scale-[0.98]"
+                        style={{ background: "linear-gradient(135deg, #f97316, #ea580c)" }}
+                      >
+                        Answer with Sage →
+                      </button>
+                      {!isSkipped ? (
+                        <button
+                          onClick={() => setSkippedParts(prev => new Set(prev).add(p.id))}
+                          className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-400 border border-gray-200 hover:bg-gray-50 transition-all"
+                        >
+                          Skip
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setSkippedParts(prev => { const s = new Set(prev); s.delete(p.id); return s; })}
+                          className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-400 border border-gray-200 hover:bg-gray-50 transition-all"
+                        >
+                          Undo
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {isDone && (
+                    <button
+                      onClick={() => { setAnsweredParts(prev => { const s = new Set(prev); s.delete(p.id); return s; }); handleQuestionClick(p); }}
+                      className="text-xs text-orange-400 hover:text-orange-600 font-medium transition-colors"
+                    >
+                      Practise again →
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* All done celebration */}
+          {allDone && (
+            <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "1.5px solid #86efac" }}>
+              <div className="text-3xl mb-2">🎉</div>
+              <p className="font-bold text-green-700 text-base mb-1">All parts completed!</p>
+              <p className="text-xs text-green-600">Great work practising Q{first.questionNumber} with Sage</p>
+              <button
+                onClick={() => { setSelectedGroup(null); setAnsweredParts(new Set()); setSkippedParts(new Set()); }}
+                className="mt-4 text-sm font-medium text-green-700 border border-green-300 rounded-xl px-4 py-2 hover:bg-green-50 transition-all"
+              >
+                Back to all questions
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
 
-      {/* Email gate — fires for regular + upload + save flows */}
-      {(pendingQuestion || pendingUpload) && !student && (
+      {/* Email gate — fires for regular + upload + group + save flows */}
+      {(pendingQuestion || pendingUpload || pendingGroup) && !student && (
         <EmailGateModal onConfirm={handleEmailConfirm} />
       )}
 
@@ -624,7 +794,11 @@ export default function PSLEPage() {
             const totalMarks = parts.reduce((sum: number, p: PSLEQuestion) => sum + p.marks, 0);
             const sharedContext = first.context || parts.find((p: PSLEQuestion) => p.context)?.context;
             return (
-              <div key={groupKey} className="rounded-2xl overflow-hidden bg-white border border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-200">
+              <div
+                key={groupKey}
+                onClick={() => handleGroupClick(parts)}
+                className="rounded-2xl overflow-hidden bg-white border border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-200 cursor-pointer group"
+              >
                 {/* Card Header */}
                 <div className="px-5 py-4" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)", borderBottom: "1px solid #FFD8B8" }}>
                   <div className="flex items-center justify-between gap-3">
@@ -639,18 +813,21 @@ export default function PSLEPage() {
                         {totalMarks} mark{totalMarks !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <button
-                      onClick={(e) => handleSave(e, first)}
-                      title={isSaved ? "Saved to Repository" : "Save whole question to Repository"}
-                      className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all"
-                      style={{
-                        background: isSaved ? "#16a34a" : "#f0fdf4",
-                        color: isSaved ? "white" : "#16a34a",
-                        border: isSaved ? "none" : "1.5px solid #86efac",
-                      }}
-                    >
-                      {isSaved ? "✓" : "💾"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => handleSave(e, first)}
+                        title={isSaved ? "Saved to Repository" : "Save whole question to Repository"}
+                        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all"
+                        style={{
+                          background: isSaved ? "#16a34a" : "#f0fdf4",
+                          color: isSaved ? "white" : "#16a34a",
+                          border: isSaved ? "none" : "1.5px solid #86efac",
+                        }}
+                      >
+                        {isSaved ? "✓" : "💾"}
+                      </button>
+                      <span className="text-orange-300 group-hover:text-orange-500 transition-colors text-lg">→</span>
+                    </div>
                   </div>
                 </div>
 
@@ -662,26 +839,29 @@ export default function PSLEPage() {
                   </div>
                 )}
 
-                {/* Individual Parts — each clickable */}
+                {/* Parts preview — display only, not individually clickable */}
                 <div className="divide-y divide-orange-50">
                   {parts.map((p: PSLEQuestion) => (
-                    <button
+                    <div
                       key={p.id}
-                      onClick={() => handleQuestionClick(p)}
-                      className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-orange-50/60 transition-colors group"
+                      className="px-5 py-3 flex items-start gap-3"
                     >
                       <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5" style={{ background: "#f97316" }}>
                         {p.part || "✦"}
                       </span>
-                      <p className="flex-1 text-sm text-gray-800 leading-relaxed font-medium">{p.question}</p>
-                      <div className="flex-shrink-0 flex items-center gap-2 mt-0.5">
-                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-md text-orange-600 bg-orange-50 border border-orange-100">
-                          {p.marks}m
-                        </span>
-                        <span className="text-orange-300 group-hover:text-orange-500 transition-colors text-base">→</span>
-                      </div>
-                    </button>
+                      <p className="flex-1 text-sm text-gray-700 leading-relaxed line-clamp-2">{p.question}</p>
+                      <span className="flex-shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-md text-orange-600 bg-orange-50 border border-orange-100 mt-0.5 self-start">
+                        {p.marks}m
+                      </span>
+                    </div>
                   ))}
+                </div>
+
+                {/* Practice CTA */}
+                <div className="px-5 py-3" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)", borderTop: "1px solid #FFE8CC" }}>
+                  <p className="text-xs text-center text-orange-500 font-semibold group-hover:text-orange-700 transition-colors">
+                    Tap to practise with Sage →
+                  </p>
                 </div>
               </div>
             );
