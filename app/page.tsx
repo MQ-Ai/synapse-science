@@ -350,6 +350,7 @@ export default function PSLEPage() {
   // Group session: all parts of a question on one page
   const [selectedGroup, setSelectedGroup] = useState<PSLEQuestion[] | null>(null);
   const [pendingGroup, setPendingGroup] = useState<PSLEQuestion[] | null>(null);
+  const [sagePartInGroup, setSagePartInGroup] = useState<PSLEQuestion | null>(null);  // Which part is being answered in group view
 
   // ── On mount: restore student + bridge from Marking Centre ─────────────────
   useEffect(() => {
@@ -496,7 +497,7 @@ export default function PSLEPage() {
     );
   })();
 
-  // Group session view — all parts on one page
+  // Group session view — all parts on one page with modal Sage dialogue
   if (selectedGroup && !selectedQuestion) {
     const first = selectedGroup[0];
     const totalMarks = selectedGroup.reduce((sum: number, p: PSLEQuestion) => sum + p.marks, 0);
@@ -537,7 +538,7 @@ export default function PSLEPage() {
             {selectedGroup.map((p: PSLEQuestion) => (
               <button
                 key={p.id}
-                onClick={() => setSelectedQuestion(p)}
+                onClick={() => setSagePartInGroup(p)}
                 className="w-full text-left rounded-2xl bg-white border border-orange-100 p-5 hover:border-orange-300 hover:shadow-md transition-all group"
               >
                 <div className="flex items-start gap-4">
@@ -560,6 +561,37 @@ export default function PSLEPage() {
             Tap any part above to answer with Sage
           </div>
         </div>
+
+        {/* Sage modal overlay */}
+        {sagePartInGroup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
+            <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", maxHeight: "90vh" }}>
+              {/* Modal header */}
+              <div className="px-6 py-4 border-b border-orange-100 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)" }}>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-sm">{first.year} Q{first.questionNumber}{sagePartInGroup.part} — {first.topic}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{sagePartInGroup.marks} mark{sagePartInGroup.marks !== 1 ? "s" : ""}</p>
+                </div>
+                <button
+                  onClick={() => setSagePartInGroup(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Sage terminal inside modal */}
+              <div className="flex-1 overflow-hidden">
+                <PSLESocraticTerminal
+                  key={sagePartInGroup.id}
+                  question={sagePartInGroup}
+                  student={student!}
+                  onBack={() => setSagePartInGroup(null)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
