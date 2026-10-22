@@ -171,8 +171,15 @@ interface Message {
   ts: number;
 }
 
+interface StudentProfile {
+  email: string;
+  name: string;
+  level: string;
+}
+
 interface Props {
   question: PSLEQuestion;
+  student: StudentProfile;
   onBack: () => void;
 }
 
@@ -230,7 +237,7 @@ function StarRating({ stars }: { stars: number }) {
   );
 }
 
-export default function PSLESocraticTerminal({ question, onBack }: Props) {
+export default function PSLESocraticTerminal({ question, student, onBack }: Props) {
   const hasDiagram = !!question.diagramImage;
   const openingMessage = hasDiagram
     ? `Hi there! 👋 Look at the diagram above carefully, then try to answer the question. I'll guide you step by step — no rush!`
