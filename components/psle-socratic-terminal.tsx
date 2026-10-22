@@ -440,7 +440,7 @@ export default function PSLESocraticTerminal({ question, student, onBack }: Prop
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
+    <div className="h-full flex flex-col" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
 
       {/* Breathing overlay */}
       {showBreathing && (

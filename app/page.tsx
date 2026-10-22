@@ -565,12 +565,14 @@ export default function PSLEPage() {
                 {/* Inline Sage dialogue — only for selected part */}
                 {sagePartInGroup?.id === p.id && student && (
                   <div className="mt-2 rounded-2xl overflow-hidden border border-orange-200" style={{ background: "#FFF8F2", height: "700px", display: "flex", flexDirection: "column" }}>
-                    <PSLESocraticTerminal
-                      key={p.id}
-                      question={p}
-                      student={student}
-                      onBack={() => setSagePartInGroup(null)}
-                    />
+                    <div style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                      <PSLESocraticTerminal
+                        key={p.id}
+                        question={p}
+                        student={student}
+                        onBack={() => setSagePartInGroup(null)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
