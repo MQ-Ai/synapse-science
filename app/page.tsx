@@ -123,6 +123,7 @@ function UploadQuestionModal({ onConfirm, onClose }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [extracted, setExtracted] = useState<UploadedQuestionPreview | null>(null);
+  const [showSageInline, setShowSageInline] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const compressImage = useCallback((file: File): Promise<string> => {
@@ -276,6 +277,18 @@ function UploadQuestionModal({ onConfirm, onClose }: {
           ) : (
             /* Confirmation view */
             <>
+              {/* Uploaded image at top */}
+              {images.length > 0 && (
+                <div className="rounded-2xl overflow-hidden border border-purple-200 mb-4" style={{ background: "#F5F3FF" }}>
+                  <img src={images[0]} alt="Uploaded question" className="w-full h-auto object-contain" style={{ maxHeight: "400px" }} />
+                  {images.length > 1 && (
+                    <div className="p-3 text-center text-xs text-gray-500">
+                      +{images.length - 1} more {images.length - 1 === 1 ? "page" : "pages"}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="rounded-2xl p-4 flex items-start gap-3" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
                 <span className="text-xl">✅</span>
                 <div>
@@ -308,20 +321,37 @@ function UploadQuestionModal({ onConfirm, onClose }: {
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setExtracted(null); setError(""); }}
-                  className="flex-1 py-3 rounded-2xl font-semibold text-sm border transition-all"
-                  style={{ border: "1.5px solid #C4B5FD", color: "#6366f1", background: "white" }}>
-                  ← Re-upload
-                </button>
-                <button
-                  onClick={() => onConfirm(extracted)}
-                  className="flex-1 py-3 rounded-2xl text-white font-semibold text-sm transition-all"
-                  style={{ background: "linear-gradient(135deg, #6366f1, #a855f7)" }}>
-                  Start with Sage →
-                </button>
-              </div>
+              {/* Sage inline expansion */}
+              {showSageInline && student ? (
+                <div className="rounded-2xl overflow-hidden border border-purple-200" style={{ background: "#FFF8F2", height: "600px", display: "flex", flexDirection: "column" }}>
+                  <PSLESocraticTerminal
+                    question={extracted as unknown as PSLEQuestion}
+                    student={student}
+                    onBack={() => setShowSageInline(false)}
+                  />
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setExtracted(null); setError(""); }}
+                    className="flex-1 py-3 rounded-2xl font-semibold text-sm border transition-all"
+                    style={{ border: "1.5px solid #C4B5FD", color: "#6366f1", background: "white" }}>
+                    ← Re-upload
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (student) {
+                        setShowSageInline(true);
+                      } else {
+                        onConfirm(extracted);
+                      }
+                    }}
+                    className="flex-1 py-3 rounded-2xl text-white font-semibold text-sm transition-all"
+                    style={{ background: "linear-gradient(135deg, #6366f1, #a855f7)" }}>
+                    Answer with Sage →
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
