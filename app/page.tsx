@@ -347,6 +347,10 @@ export default function PSLEPage() {
   // Pending save: save once we have a student profile
   const [pendingSaveQ, setPendingSaveQ] = useState<PSLEQuestion | null>(null);
 
+  // Group session: all parts of a question on one page
+  const [selectedGroup, setSelectedGroup] = useState<PSLEQuestion[] | null>(null);
+  const [pendingGroup, setPendingGroup] = useState<PSLEQuestion[] | null>(null);
+
   // ── On mount: restore student + bridge from Marking Centre ─────────────────
   useEffect(() => {
     // 1. Restore student profile from localStorage
@@ -408,8 +412,16 @@ export default function PSLEPage() {
       setPendingSaveQ(null);
     }
 
-    if (pendingQuestion) { setSelectedQuestion(pendingQuestion); setPendingQuestion(null); }
-    if (pendingUpload) { setSelectedQuestion(pendingUpload as unknown as PSLEQuestion); setPendingUpload(null); }
+    if (pendingGroup) {
+      setSelectedGroup(pendingGroup);
+      setPendingGroup(null);
+    } else if (pendingQuestion) {
+      setSelectedQuestion(pendingQuestion);
+      setPendingQuestion(null);
+    } else if (pendingUpload) {
+      setSelectedQuestion(pendingUpload as unknown as PSLEQuestion);
+      setPendingUpload(null);
+    }
   }
 
   function handleUploadConfirm(q: UploadedQuestionPreview) {
@@ -456,6 +468,15 @@ export default function PSLEPage() {
     }
   }
 
+  function handleGroupClick(parts: PSLEQuestion[]) {
+    if (student) {
+      setSelectedGroup(parts);
+    } else {
+      setPendingGroup(parts);
+      setPendingQuestion({} as PSLEQuestion); // fire email gate
+    }
+  }
+
   const filteredQuestions = PSLE_QUESTIONS.filter((q: PSLEQuestion) => {
     const topicMatch = filterTopic === "All Topics" || q.topic === filterTopic;
     const yearMatch = filterYear === "all" || q.year === filterYear;
@@ -474,6 +495,74 @@ export default function PSLEPage() {
       [...parts].sort((a, b) => (a.part || "").localeCompare(b.part || ""))
     );
   })();
+
+  // Group session view — all parts on one page
+  if (selectedGroup && !selectedQuestion) {
+    const first = selectedGroup[0];
+    const totalMarks = selectedGroup.reduce((sum: number, p: PSLEQuestion) => sum + p.marks, 0);
+    const sharedContext = first.context || selectedGroup.find((p: PSLEQuestion) => p.context)?.context;
+
+    return (
+      <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
+        <div className="max-w-2xl mx-auto px-6 py-8">
+          {/* Back button */}
+          <button
+            onClick={() => setSelectedGroup(null)}
+            className="mb-6 flex items-center gap-2 text-orange-500 hover:text-orange-700 font-medium text-sm transition-colors"
+          >
+            ← Back to questions
+          </button>
+
+          {/* Header with context */}
+          <div className="rounded-2xl p-6 mb-6" style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 40%, #7c3aed 100%)" }}>
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.2)" }}>
+                {first.year} Q{first.questionNumber}
+              </span>
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.15)" }}>
+                {first.topic}
+              </span>
+              <span className="text-xs text-white/80 font-medium">{totalMarks} marks</span>
+            </div>
+            {sharedContext && (
+              <div>
+                <p className="text-xs font-semibold text-white/75 uppercase tracking-wide mb-2">Context</p>
+                <p className="text-sm text-white leading-relaxed">{sharedContext}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Parts list — all on one page */}
+          <div className="space-y-3">
+            {selectedGroup.map((p: PSLEQuestion) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedQuestion(p)}
+                className="w-full text-left rounded-2xl bg-white border border-orange-100 p-5 hover:border-orange-300 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "#f97316" }}>
+                    {p.part || "✦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs font-semibold text-gray-400">{p.marks} mark{p.marks !== 1 ? "s" : ""}</span>
+                    </div>
+                    <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">{p.question}</p>
+                  </div>
+                  <span className="text-orange-300 group-hover:text-orange-500 transition-colors text-lg flex-shrink-0">→</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center text-xs text-gray-400">
+            Tap any part above to answer with Sage
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedQuestion && selectedQuestion.id) {
     return (
@@ -507,8 +596,8 @@ export default function PSLEPage() {
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #FFF9F0 0%, #FFF0F5 50%, #F0F5FF 100%)" }}>
 
-      {/* Email gate — fires for regular + upload + save flows */}
-      {(pendingQuestion || pendingUpload) && !student && (
+      {/* Email gate — fires for regular + upload + group + save flows */}
+      {(pendingQuestion || pendingUpload || pendingGroup) && !student && (
         <EmailGateModal onConfirm={handleEmailConfirm} />
       )}
 
@@ -624,7 +713,11 @@ export default function PSLEPage() {
             const totalMarks = parts.reduce((sum: number, p: PSLEQuestion) => sum + p.marks, 0);
             const sharedContext = first.context || parts.find((p: PSLEQuestion) => p.context)?.context;
             return (
-              <div key={groupKey} className="rounded-2xl overflow-hidden bg-white border border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-200">
+              <button
+                key={groupKey}
+                onClick={() => handleGroupClick(parts)}
+                className="w-full rounded-2xl overflow-hidden bg-white border border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-200 text-left group"
+              >
                 {/* Card Header */}
                 <div className="px-5 py-4" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)", borderBottom: "1px solid #FFD8B8" }}>
                   <div className="flex items-start justify-between gap-3">
@@ -662,28 +755,29 @@ export default function PSLEPage() {
                   </div>
                 )}
 
-                {/* Individual parts — each clickable for Sage */}
-                <div className="divide-y divide-orange-50">
-                  {parts.map((p: PSLEQuestion) => (
-                    <button
+                {/* Parts preview — shows all parts, clickable card opens group view */}
+                <div className="divide-y divide-orange-50 px-5 py-4">
+                  {parts.map((p: PSLEQuestion, idx: number) => (
+                    <div
                       key={p.id}
-                      onClick={() => handleQuestionClick(p)}
-                      className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-orange-50/60 transition-colors group"
+                      className={`flex items-start gap-3 ${idx > 0 ? "pt-3 mt-3" : ""}`}
                     >
                       <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold mt-0.5" style={{ background: "#f97316" }}>
                         {p.part || "✦"}
                       </span>
-                      <p className="flex-1 text-sm text-gray-800 leading-relaxed font-medium">{p.question}</p>
-                      <div className="flex-shrink-0 flex items-center gap-2 mt-0.5">
-                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-md text-orange-600 bg-orange-50 border border-orange-100">
-                          {p.marks}m
-                        </span>
-                        <span className="text-orange-300 group-hover:text-orange-500 transition-colors text-base">→</span>
-                      </div>
-                    </button>
+                      <p className="flex-1 text-sm text-gray-700 leading-relaxed line-clamp-1">{p.question}</p>
+                      <span className="text-xs font-medium px-1.5 py-0.5 rounded-md text-orange-600 bg-orange-50 border border-orange-100 flex-shrink-0">
+                        {p.marks}m
+                      </span>
+                    </div>
                   ))}
                 </div>
-              </div>
+
+                {/* CTA footer */}
+                <div className="px-5 py-3 text-center text-xs text-orange-500 font-semibold group-hover:text-orange-700 transition-colors" style={{ background: "linear-gradient(135deg, #FFF8F2 0%, #FFF0E4 100%)", borderTop: "1px solid #FFE8CC" }}>
+                  View all parts →
+                </div>
+              </button>
             );
           })}
         </div>
