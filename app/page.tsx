@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Image from "next/image";
 import { PSLE_QUESTIONS, TOPICS, YEARS, PSLEQuestion } from "@/lib/psle-questions";
 import PSLESocraticTerminal from "@/components/psle-socratic-terminal";
 import { saveToRepository, getRepository, type RepositoryQuestion } from "@/lib/repository";
@@ -562,6 +563,28 @@ export default function PSLEPage() {
               </div>
             )}
           </div>
+
+          {/* Diagram display */}
+          {(() => {
+            const diagramPart = selectedGroup.find((p: PSLEQuestion) => p.diagramImage);
+            if (!diagramPart) return null;
+            return (
+              <div className="rounded-2xl border border-orange-200 bg-white p-4 mb-6">
+                <Image
+                  src={diagramPart.diagramImage}
+                  alt="Question diagram"
+                  width={700}
+                  height={500}
+                  style={{ width: "100%", height: "auto", objectFit: "contain" }}
+                />
+                {diagramPart.diagramCaption && (
+                  <p className="text-xs text-gray-500 mt-3 text-center italic">
+                    {diagramPart.diagramCaption}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Parts list with inline Sage expansion */}
           <div className="space-y-3">
