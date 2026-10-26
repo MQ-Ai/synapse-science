@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { PSLE_QUESTIONS, TOPICS, YEARS, PSLEQuestion } from "@/lib/psle-questions";
 import PSLESocraticTerminal from "@/components/psle-socratic-terminal";
 import { saveToRepository, getRepository, type RepositoryQuestion } from "@/lib/repository";
@@ -115,9 +115,10 @@ interface UploadedQuestionPreview {
   hasProvidedAnswer: boolean;
 }
 
-function UploadQuestionModal({ onConfirm, onClose }: {
+function UploadQuestionModal({ onConfirm, onClose, student }: {
   onConfirm: (q: UploadedQuestionPreview) => void;
   onClose: () => void;
+  student: StudentProfile | null;
 }) {
   const [images, setImages] = useState<string[]>([]);       // base64 data URLs
   const [previews, setPreviews] = useState<string[]>([]);   // same, for display
@@ -567,11 +568,12 @@ export default function PSLEPage() {
           {/* Diagram display */}
           {(() => {
             const diagramPart = selectedGroup.find((p: PSLEQuestion) => p.diagramImage);
-            if (!diagramPart) return null;
+            const diagramSrc = diagramPart?.diagramImage;
+            if (!diagramPart || !diagramSrc) return null;
             return (
               <div className="rounded-2xl border border-orange-200 bg-white p-4 mb-6">
-                <Image
-                  src={diagramPart.diagramImage}
+                <NextImage
+                  src={diagramSrc}
                   alt="Question diagram"
                   width={700}
                   height={500}
@@ -681,6 +683,7 @@ export default function PSLEPage() {
         <UploadQuestionModal
           onConfirm={handleUploadConfirm}
           onClose={() => setShowUpload(false)}
+          student={student}
         />
       )}
 
